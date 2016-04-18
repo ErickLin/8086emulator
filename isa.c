@@ -1,15 +1,23 @@
 #include "isa.h"
 #include <stdio.h>
 
-void SET_FLAG(u32 i){ FLAGS|=(0x1 << i);}
-u32 GET_FLAG(u32 i){ return ( FLAGS & (0x1 << i));}
+reg_file_t reg_file;
+
+const char *REG_STR[]={"AX\0","BX\0","CX\0","DX\0","SI\0","DI\0","BP\0","SP\0","CS\0","DS\0","ES\0","SS\0","IP\0","FL\0"};
+
+
+void SET_FLAG(u32 i){ *REG(FLAGS) |=(0x1 << i);}
+u32 GET_FLAG(u32 i){ return ( *REG(FLAGS) & (0x1 << i));}
 void TOGGLE_FLAG(u32 i){ (GET_FLAG(i)) ? CLR_FLAG(i) : SET_FLAG(i);}
-void CLR_FLAG(u32 i){ FLAGS&=~(0x1 << i);};
-void SET_HI(u16 *reg,u8 data){ *reg= (*reg & 0x00ff) | (data << 8); }
-u16 GET_HI(u16 reg){return ((reg & 0xff00) >> 8);}
-void SET_LOW(u16 *reg,u8 data){ *reg = (*reg & 0xff00) | data;}
-u16 GET_LOW(u16 reg){return (reg & 0x00ff);}
-void CLR_NIB(u16* reg,u16 index){ *reg = (*reg & ~(0x000f << 4*index));}
+void CLR_FLAG(u32 i){ *REG(FLAGS) &=~(0x1 << i);}
+
+void SET_HI(s16 *reg,u8 data){ *reg= (*reg & 0x00ff) | (data << 8); }
+u16 GET_HI(s16 reg){return ((reg & 0xff00) >> 8);}
+void SET_LOW(s16 *reg,u8 data){ *reg = (*reg & 0xff00) | data;}
+u16 GET_LOW(s16 reg){return (reg & 0x00ff);}
+void CLR_NIB(s16* reg,u16 index){ *reg = (*reg & ~(0x000f << 4*index));}
+s16* REG(u8 entry){ return (s16*)&reg_file + entry;}
+
 u8 PARITY(s16 v){
 	u8 parity=0;
 	while(v){ parity=!parity; v = v & (v-1);}
@@ -23,128 +31,191 @@ u8 OVERFLOW_SUM(u16 a,u16 b){
 	return 0;
 }
 
+void FLAG_CHECK(u32 data,u8 c,u8 z,u8 s,u8 p,u8 a){
+	if(c) {(CARRY(data)) ? SET_FLAG(CF) : CLR_FLAG(CF);}
+	if(z){(!data) ? SET_FLAG(ZF) : CLR_FLAG(ZF);}
+	if(s){(SIGN(data)) ? SET_FLAG(SF) : CLR_FLAG(SF);}
+	//Overflow not here
+    if(p){(PARITY(data)) ? SET_FLAG(PF) : CLR_FLAG(PF);}
+    if(a){ADJUST(data) ? SET_FLAG(AF) : CLR_FLAG(AF);}
+}
+
+u32 MMM(u8 mmm){
+	switch(mmm){
+		case 0:
+			return ABS(DS,BX+SI);
+			break;
+		case 1:
+			return ABS(DS,BX+DI);
+			break;
+		case 2:
+			return ABS(SS,BP+SI);
+			break;
+		case 3:
+			return ABS(SS,BP+DI);
+			break;
+		case 4:
+			return ABS(DS,SI);
+			break;
+		case 5:
+			return ABS(DS,DI);
+			break;
+		case 6:
+			return ABS(SS,BP);
+			break;
+		case 7:
+			return ABS(DS,BX);
+			break;
+	}	
+}
+
+u8 RRR(u8 rrr){
+	switch(rrr){
+		case 0:
+			return AX;
+			break;
+		case 1:
+			return CX;
+			break;
+		case 2:
+			return DX;
+			break;
+		case 3:
+			return BX;
+			break;
+		case 5:
+			return BP;
+			break;
+		case 6:
+			return SI;
+			break;
+		case 7:
+			return DI;
+			break;
+	}	
+}
+
 
 
 
 //ISA implementation
-
 void AAA(){
-	if(NIBBLE(AX) > 9 || GET_FLAG(AF)){
-		SET_LOW(&AX,GET_LOW(AX)+6);
-		SET_HI(&AX,GET_HI(AX)+1);
+	s16* ax=REG(AX);
+	if(NIBBLE(*ax) > 9 || GET_FLAG(AF)){
+		SET_LOW(ax,GET_LOW(*ax)+6);
+		SET_HI(ax,GET_HI(*ax)+1);
 		SET_FLAG(AF);
 		SET_FLAG(CF);
 	}else{
 		CLR_FLAG(AF);
 		CLR_FLAG(CF);
 	}
-	CLR_NIB(&AX,1);
+	CLR_NIB(ax,1);
 }
 
 void AAD(){
-	SET_LOW(&AX,GET_HI(AX)*10+GET_LOW(AX));
-	SET_HI(&AX,0);
-	(!AX) ? SET_FLAG(ZF) : CLR_FLAG(ZF);
-	(SIGN(AX)) ? SET_FLAG(SF) : CLR_FLAG(SF);
-	(PARITY(AX)) ? CLR_FLAG(PF) : SET_FLAG(PF);
+	s16* ax=REG(AX);
+	SET_LOW(ax,GET_HI(*ax)*10+1);
+	SET_HI(ax,0);
+	FLAG_CHECK(*ax,0,1,1,1,0);
 }
 
 void AAM(){
-	SET_HI(&AX,GET_LOW(AX)/10);
-	SET_LOW(&AX,GET_LOW(AX)%10);
-	(!AX) ? SET_FLAG(ZF) : CLR_FLAG(ZF);
-	(SIGN(AX)) ? SET_FLAG(SF) : CLR_FLAG(SF);
-	(PARITY(AX)) ? CLR_FLAG(PF) : SET_FLAG(PF);
+	s16 *ax=REG(AX);
+	SET_HI(ax,GET_LOW(*ax)/10);
+	SET_LOW(ax,GET_LOW(*ax)%10);
+	FLAG_CHECK(*ax,0,1,1,1,0);
 }
 
 void AAS(){
-	if(NIBBLE(AX) > 9 || GET_FLAG(AF)){
-		SET_LOW(&AX,GET_LOW(AX)-6);
-		SET_HI(&AX,GET_HI(AX)-1);
+	s16* ax=REG(AX);
+	if(NIBBLE(*ax) > 9 || GET_FLAG(AF)){
+		SET_LOW(ax,GET_LOW(*ax)-6);
+		SET_HI(ax,GET_HI(*ax)-1);
 		SET_FLAG(AF);
 		SET_FLAG(CF);
 	}else{
 		SET_FLAG(AF);
 		SET_FLAG(CF);
 	}
-	CLR_NIB(&AX,1);
+	CLR_NIB(ax,1);
 }
 
-//Uses the effective address for memory references
-
-//ADC
-
-void ADC_Reg_Mem(s16* reg,u32 eff_add){
-	u32 carry=GET_FLAG(CF);
-	u32 sum= *reg + MEM[eff_add] + carry;
-	(CARRY(sum)) ? SET_FLAG(CF) : CLR_FLAG(CF);
-	(!sum) ? SET_FLAG(ZF) : CLR_FLAG(ZF);
-	(SIGN(sum)) ? SET_FLAG(SF) : CLR_FLAG(SF);
-	u32 overflow=OVERFLOW_SUM(*reg,MEM[eff_add]);
-	if(!overflow) overflow=OVERFLOW_SUM(*reg+MEM[eff_add],carry);
-	(overflow) ? SET_FLAG(OF) : CLR_FLAG(OF);
-	(PARITY(sum)) ? CLR_FLAG(PF) : SET_FLAG(PF);
-	(ADJUST(sum)) ? SET_FLAG(AF) : CLR_FLAG(AF);
-	*reg = sum;
+void ADC(u8 d,u8 w,u8 oo,u8 rrr,u8 mmm,s16 imm){
+	switch(oo){
+		case 0:
+			ADC_Mem(d,rrr,mmm);
+			break;
+		case 1:
+			ADC_Mem_8b(d,rrr,mmm,(s8)imm);
+			break;
+		case 2:
+			ADC_Mem_16b(d,rrr,mmm,imm);
+			break;
+		case 3:
+			(w) ? ADC_Reg_16b(d,rrr,mmm) : ADC_Reg_8b(d,rrr,mmm);
+			break;
+	}
 }
 
-void ADC_Mem_Reg(u32 eff_add,s16* reg){
-	u32 carry=GET_FLAG(CF);
-	u32 sum= *reg + MEM[eff_add] + carry;
-	(CARRY(sum)) ? SET_FLAG(CF) : CLR_FLAG(CF);
-	(!sum) ? SET_FLAG(ZF) : CLR_FLAG(ZF);
-	(SIGN(sum)) ? SET_FLAG(SF) : CLR_FLAG(SF);
-	u32 overflow=OVERFLOW_SUM(*reg,MEM[eff_add]);
-	if(!overflow) overflow=OVERFLOW_SUM(*reg+MEM[eff_add],carry);
-	(overflow) ? SET_FLAG(OF) : CLR_FLAG(OF);
-	(PARITY(sum)) ? CLR_FLAG(PF) : SET_FLAG(PF);
-	(ADJUST(sum)) ? SET_FLAG(AF) : CLR_FLAG(AF);
-	MEM[eff_add]=sum;
+void ADC_Mem(u8 d,u8 rrr,u8 mmm){
+	s16 *reg=REG(RRR(rrr));
+	u32 abs_addr=MMM(mmm);
+	u32 res=*reg+MEM[abs_addr] + GET_FLAG(CF);
+	FLAG_CHECK(res,1,1,1,1,1);
+	if(d){
+		MEM[abs_addr]=res;
+	}else{ 
+		*reg=res;
+	}
 }
 
-void ADC_Reg_Reg(s16* reg_a,s16* reg_b){
-	u32 carry=GET_FLAG(CF);
-	u32 sum= *reg_a + *reg_b + carry;
-	(CARRY(sum)) ? SET_FLAG(CF) : CLR_FLAG(CF);
-	(!sum) ? SET_FLAG(ZF) : CLR_FLAG(ZF);
-	(SIGN(sum)) ? SET_FLAG(SF) : CLR_FLAG(SF);
-	u32 overflow=OVERFLOW_SUM(*reg_a,*reg_b);
-	if(!overflow) overflow=OVERFLOW_SUM(*reg_a+*reg_b,carry);
-	(overflow) ? SET_FLAG(OF) : CLR_FLAG(OF);
-	(PARITY(sum)) ? CLR_FLAG(PF) : SET_FLAG(PF);
-	(ADJUST(sum)) ? SET_FLAG(AF) : CLR_FLAG(AF);
-	*reg_a=sum;
+void ADC_Mem_8b(u8 d,u8 rrr,u8 mmm,s8 imm){
+	s16 *reg=REG(RRR(rrr));
+	u32 abs_addr=MMM(mmm)+imm;
+	u32 res=*reg+MEM[abs_addr] + GET_FLAG(CF);
+	FLAG_CHECK(res,1,1,1,1,1);
+	if(d){
+		MEM[abs_addr]=res;
+	}else{ 
+		*reg=res;
+	}
+}
+void ADC_Mem_16b(u8 d,u8 rrr,u8 mmm,s16 imm){
+	s16 *reg=REG(RRR(rrr));
+	u32 abs_addr=MMM(mmm)+imm;
+	u32 res=*reg+MEM[abs_addr] + GET_FLAG(CF);
+	FLAG_CHECK(res,1,1,1,1,1);
+	if(d){
+		MEM[abs_addr]=res;
+	}else{ 
+		*reg=res;
+	}
+}
+void ADC_Reg_8b(u8 d,u8 rrr,u8 mmm){
+	s16 *reg_a=REG(RRR(rrr));
+	s16 *reg_b=REG(RRR(mmm));
+	u32 res=GET_LOW(*reg_a)+GET_LOW(*reg_b) + GET_FLAG(CF);
+	FLAG_CHECK(res,1,1,1,1,1);
+	if(d){
+		SET_LOW(reg_b,res);
+	}else{ 
+		SET_LOW(reg_a,res);
+	}
+}
+void ADC_Reg_16b(u8 d,u8 rrr,u8 mmm){
+	s16 *reg_a=REG(RRR(rrr));
+	s16 *reg_b=REG(RRR(mmm));
+	u32 res=*reg_a+*reg_b + GET_FLAG(CF);
+	FLAG_CHECK(res,1,1,1,1,1);
+	if(d){
+		*reg_b=res;
+	}else{ 
+		*reg_a=res;
+	}
 }
 
-void ADC_Mem_Imm(u32 eff_add,s16 imm){
-	u32 carry=GET_FLAG(CF);
-	u32 sum= MEM[eff_add] + imm + carry;
-	(CARRY(sum)) ? SET_FLAG(CF) : CLR_FLAG(CF);
-	(!sum) ? SET_FLAG(ZF) : CLR_FLAG(ZF);
-	(SIGN(sum)) ? SET_FLAG(SF) : CLR_FLAG(SF);
-	u32 overflow=OVERFLOW_SUM(MEM[eff_add],imm);
-	if(!overflow) overflow=OVERFLOW_SUM(MEM[eff_add]+imm,carry);
-	(overflow) ? SET_FLAG(OF) : CLR_FLAG(OF);
-	(PARITY(sum)) ? CLR_FLAG(PF) : SET_FLAG(PF);
-	(ADJUST(sum)) ? SET_FLAG(AF) : CLR_FLAG(AF);
-	MEM[eff_add]=sum;
-}
-
-void ADC_Reg_Imm(s16* reg,s16 imm){
-	u32 carry=GET_FLAG(CF);
-	u32 sum= *reg + imm + carry;
-	(CARRY(sum)) ? SET_FLAG(CF) : CLR_FLAG(CF);
-	(!sum) ? SET_FLAG(ZF) : CLR_FLAG(ZF);
-	(SIGN(sum)) ? SET_FLAG(SF) : CLR_FLAG(SF);
-	u32 overflow=OVERFLOW_SUM(*reg,imm);
-	if(!overflow) overflow=OVERFLOW_SUM(*reg+imm,carry);
-	(overflow) ? SET_FLAG(OF) : CLR_FLAG(OF);
-	(PARITY(sum)) ? CLR_FLAG(PF) : SET_FLAG(PF);
-	(ADJUST(sum)) ? SET_FLAG(AF) : CLR_FLAG(AF);
-	*reg = sum;
-}
-
-//ADD
+/*
 
 void ADD_Reg_Mem(s16* reg,u32 eff_add){
 	u32 carry=GET_FLAG(CF);
@@ -212,6 +283,7 @@ void ADD_Reg_Imm(s16* reg,s16 imm){
 	(ADJUST(sum)) ? SET_FLAG(AF) : CLR_FLAG(AF);
 	*reg = sum;
 }
+/*
 
 //AND
 
@@ -253,11 +325,11 @@ void AND_Reg_Imm(s16* reg,s16 imm){
 
 void CALL(u32 eff_add){
 	MEM[SP_]=FLAGS;
-	SP_-=4;
+	SP_-=2;
 	MEM[SP_]=CS;
-	SP_-=4;
+	SP_-=2;
 	MEM[SP_]=IP+1;
-	SP_-=4;
+	SP_-=2;
 }
 
 
@@ -456,9 +528,9 @@ void INTO(){
 
 void IRET(){
 	IP=MEM[SP_];
-	SP_+=4;
+	SP_+=2;
 	CS=MEM[SP_];
-	SP_+=4;
+	SP_+=2;
 	IP=MEM[SP_];
 }
 
@@ -610,4 +682,115 @@ void LOOPZ(u32 eff_add){
 	CX--;
 	if(!CX && !GET_FLAG(ZF)) IP=eff_add;
 }
+
+
+void MOV_Reg_Mem(s16* reg,u32 eff_add){
+	*reg=MEM[eff_add];
+}
+void MOV_Mem_Reg(u32 eff_add,s16* reg){
+	MEM[eff_add]=*reg;
+}
+void MOV_Reg_Reg(s16* reg_a,s16* reg_b){
+	*reg_a=*reg_b;
+}
+void MOV_Mem_Imm(u32 eff_add,s16 imm){
+	MEM[eff_add]=imm;
+}
+void MOV_Reg_Imm(s16* reg,s16 imm){
+	*reg=imm;
+}
+void MOV_SReg_Mem(s16* reg,u32 eff_add){
+	*reg=MEM[eff_add];
+}
+void MOV_Mem_SReg(u32 eff_add,s16* reg){
+	MEM[eff_add]=*reg;
+}
+void MOV_Reg_SReg(s16* reg_a,s16* reg_b){
+	*reg_a=*reg_b;
+}
+void MOV_SReg_Reg(s16* reg_a,s16* reg_b){
+	*reg_a=*reg_b;
+}
+
+void MOVSB(){
+	MEM[ES+DI]=MEM[DS+SI];
+	if(!GET_FLAG(DF)){SI++; DI++;}
+	else{SI--; DI--;}
+}
+
+void MOVSW(){
+	MEM[ES+DI]=MEM[DS+SI];
+	if(!GET_FLAG(DF)){SI+=2; DI+=2;}
+	else{SI-=2; DI-=2;}
+}
+
+void MUL_Reg_8b(s16* reg){
+	AX=((u16)GET_LOW(AX))*((u16)GET_LOW(*reg));
+	if(!DX){ CLR_FLAG(CF); CLR_FLAG(OF);}
+	else {SET_FLAG(CF); SET_FLAG(OF);}
+}
+void MUL_Mem_8b(u32 eff_add){
+	AX=((u16)GET_LOW(AX))*((u16)MEM[eff_add]);
+	if(!DX){ CLR_FLAG(CF); CLR_FLAG(OF);}
+	else {SET_FLAG(CF); SET_FLAG(OF);}
+}
+
+void MUL_Reg_16b(s16* reg){
+	u32 res=((u16)GET_LOW(AX))*((u16)GET_LOW(*reg));
+	DX=0x00ff & (res >> 8);
+	AX=res;
+	if(!DX){ CLR_FLAG(CF); CLR_FLAG(OF);}
+	else {SET_FLAG(CF); SET_FLAG(OF);}
+}
+void MUL_Mem_16b(u32 eff_add){
+	u32 res=((u16)GET_LOW(AX))*((u16)MEM[eff_add]);
+	if(!DX){ CLR_FLAG(CF); CLR_FLAG(OF);}
+	else {SET_FLAG(CF); SET_FLAG(OF);}
+}
+
+void NEG_Reg(s16* reg){
+	s16 temp=*reg;
+	*reg=0;
+	ADD_Reg_Imm(reg,~(temp)+1);
+}
+void NEG_Mem(u32 eff_add){
+	s16 temp=MEM[eff_add];
+	MEM[eff_add]=0;
+	ADD_Mem_Imm(eff_add,~(temp)+1);
+}
+
+void NOP(){return;}
+
+void OR_Reg_Mem(s16* reg,u32 eff_add){
+	*reg= *reg | MEM[eff_add];
+	(*reg) ? SET_FLAG(ZF) : CLR_FLAG(ZF);
+	(SIGN(*reg)) ? SET_FLAG(SF) : CLR_FLAG(SF);
+	(PARITY(*reg)) ? SET_FLAG(PF) : CLR_FLAG(PF);	
+}
+void OR_Mem_Reg(u32 eff_add,s16* reg){
+	MEM[eff_add]= *reg | MEM[eff_add];
+	(MEM[eff_add]) ? SET_FLAG(ZF) : CLR_FLAG(ZF);
+	(SIGN(MEM[eff_add])) ? SET_FLAG(SF) : CLR_FLAG(SF);
+	(PARITY(MEM[eff_add])) ? SET_FLAG(PF) : CLR_FLAG(PF);
+}
+void OR_Reg_Reg(s16* reg_a,s16* reg_b){
+	*reg_a= *reg_a | *reg_b;
+	(*reg_a) ? SET_FLAG(ZF) : CLR_FLAG(ZF);
+	(SIGN(*reg_a)) ? SET_FLAG(SF) : CLR_FLAG(SF);
+	(PARITY(*reg_a)) ? SET_FLAG(PF) : CLR_FLAG(PF);
+}
+void OR_Mem_Imm(u32 eff_add,s16 imm){
+	MEM[eff_add]= imm | MEM[eff_add];
+	(MEM[eff_add]) ? SET_FLAG(ZF) : CLR_FLAG(ZF);
+	(SIGN(MEM[eff_add])) ? SET_FLAG(SF) : CLR_FLAG(SF);
+	(PARITY(MEM[eff_add])) ? SET_FLAG(PF) : CLR_FLAG(PF);
+}
+void OR_Reg_Imm(s16* reg,s16 imm){
+	*reg= *reg | imm;
+	(*reg) ? SET_FLAG(ZF) : CLR_FLAG(ZF);
+	(SIGN(*reg)) ? SET_FLAG(SF) : CLR_FLAG(SF);
+	(PARITY(*reg)) ? SET_FLAG(PF) : CLR_FLAG(PF);	
+}
+
+*/
 
