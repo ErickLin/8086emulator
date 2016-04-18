@@ -35,7 +35,7 @@ s16 DX;
 u16 SI;
 u16 DI;
 u16 BP;
-u16 SP;
+u16 SP_; //Name conflict with something in SDL package
 
 //(Segment Registers)
 u16 CS;
@@ -86,7 +86,7 @@ void AND_Mem_Imm(u32,s16);
 void AND_Reg_Imm(s16*,s16);
 
 
-void CALL(u32); //Implement TODO ********** once Push and pop are up
+void CALL(u32); 
 
 void CBW();
 
@@ -122,14 +122,55 @@ void IMUL_Reg_8b(s16*);
 void IMUL_Mem_8b(u32);
 void IMUL_Reg_16b(s16*);
 void IMUL_Mem_16b(u32); 
-void IN(); //TODO
+void IN(); //TODO Might not even need to support this
 void INC_Reg(s16*);
 void INC_Mem(u32);
-void INT(u32); //TODO
+void INT(u32); //TODO save this for later when we do allll the interrupts
 void INTO();
-void IRET(); //TODO
-
-
+void IRET(); 
+//All jumps we need to look at for CS:IP offset when using labels
+void JA(u32);
+void JAE(u32);
+void JB(u32);
+void JBE(u32);
+void JC(u32);
+void JCXZ(u32);
+void JE(u32);
+void JG(u32);
+void JGE(u32);
+void JL(u32);
+void JLE(u32);
+void JMP(u32);
+void JNA(u32);
+void JNAE(u32);
+void JNB(u32);
+void JNBE(u32);
+void JNC(u32);
+void JNE(u32);
+void JNG(u32);
+void JNGE(u32);
+void JNL(u32);
+void JNLE(u32);
+void JNO(u32);
+void JNP(u32);
+void JNS(u32);
+void JNZ(u32);
+void JO(u32);
+void JP(u32);
+void JPE(u32);
+void JPO(u32);
+void JS(u32);
+void JZ(u32);
+void LAHF();
+void LDS_Reg_Mem(s16*,u32);
+void LEA_Mem_Reg(s16*,u32);
+void LES(s16*,u32);
+void LODSB();
+void LODSW();
+void LOOP(u32);
+void LOOPE(u32);
+void LOOPNE(u32);
+void LOOPNZ(u32); //Same as LOOPNE? Am i hallucinating?
 
 
 #endif

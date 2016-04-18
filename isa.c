@@ -252,11 +252,12 @@ void AND_Reg_Imm(s16* reg,s16 imm){
 }
 
 void CALL(u32 eff_add){
-	MEM[SP]=IP;
-	SP+=4;
-	MEM[SP]=CS;
-	SP+=4;
-	IP=eff_add;
+	MEM[SP_]=FLAGS;
+	SP_-=4;
+	MEM[SP_]=CS;
+	SP_-=4;
+	MEM[SP_]=IP+1;
+	SP_-=4;
 }
 
 
@@ -453,4 +454,160 @@ void INTO(){
 	if(GET_FLAG(OF)) INT(4);
 }
 
+void IRET(){
+	IP=MEM[SP_];
+	SP_+=4;
+	CS=MEM[SP_];
+	SP_+=4;
+	IP=MEM[SP_];
+}
+
+void JA(u32 eff_add){
+	if(!GET_FLAG(CF) && !GET_FLAG(ZF)) IP=eff_add;
+}
+
+void JAE(u32 eff_add){
+	if(!GET_FLAG(CF)) IP=eff_add;
+}
+void JB(u32 eff_add){
+	if(GET_FLAG(CF)) IP=eff_add;
+}
+
+void JBE(u32 eff_add){
+	if(GET_FLAG(CF) || GET_FLAG(ZF)) IP=eff_add;
+}
+
+void JC(u32 eff_add){
+	if(GET_FLAG(CF)) IP=eff_add;
+}
+
+void JCXZ(u32 eff_add){
+	if(!GET_FLAG(CX)) IP=eff_add;
+}
+
+void JE(u32 eff_add){
+	if(GET_FLAG(ZF)) IP=eff_add;
+}
+void JG(u32 eff_add){
+	if(!GET_FLAG(ZF) && !GET_FLAG(OF)) IP=eff_add;
+}
+void JGE(u32 eff_add){
+	if((GET_FLAG(SF) && GET_FLAG(OF)) || (!GET_FLAG(SF) || !GET_FLAG(OF))) IP=eff_add;
+}
+void JL(u32 eff_add){
+	if(GET_FLAG(SF) || GET_FLAG(OF)) IP=eff_add;
+}
+void JLE(u32 eff_add){
+	if(GET_FLAG(SF) || GET_FLAG(OF) || GET_FLAG(ZF)) IP=eff_add;
+}
+void JMP(u32 eff_add){
+	IP=eff_add;
+}
+void JNA(u32 eff_add){
+	if(GET_FLAG(CF) || GET_FLAG(ZF)) IP=eff_add;
+}
+void JNAE(u32 eff_add){
+	if(GET_FLAG(CF)) IP=eff_add;
+}
+void JNB(u32 eff_add){
+	if(!GET_FLAG(CF)) IP=eff_add;
+}
+void JNBE(u32 eff_add){
+	if(!GET_FLAG(CF) && !GET_FLAG(ZF)) IP=eff_add;
+}
+void JNC(u32 eff_add){
+	if(!GET_FLAG(CF)) IP=eff_add;
+}
+void JNE(u32 eff_add){
+	if(!GET_FLAG(ZF)) IP=eff_add;
+}
+void JNG(u32 eff_add){
+	if(GET_FLAG(ZF) && (GET_FLAG(SF) || GET_FLAG(OF))) IP=eff_add;
+}
+void JNGE(u32 eff_add){
+	if(GET_FLAG(SF) || GET_FLAG(OF)) IP=eff_add;
+}
+void JNL(u32 eff_add){
+	if((GET_FLAG(SF) && GET_FLAG(OF)) || (!GET_FLAG(SF) || !GET_FLAG(OF))) IP=eff_add;
+}
+void JNLE(u32 eff_add){
+	if( ((GET_FLAG(SF) && GET_FLAG(OF)) || (!GET_FLAG(SF) || !GET_FLAG(OF))) && !GET_FLAG(ZF) ) IP=eff_add;
+}
+void JNO(u32 eff_add){
+	if(!GET_FLAG(OF)) IP=eff_add;
+}
+void JNP(u32 eff_add){
+	if(!GET_FLAG(PF)) IP=eff_add;
+}
+void JNS(u32 eff_add){
+	if(!GET_FLAG(SF)) IP=eff_add;
+}
+void JNZ(u32 eff_add){
+	if(!GET_FLAG(ZF)) IP=eff_add;
+}
+void JO(u32 eff_add){
+	if(GET_FLAG(OF)) IP=eff_add;
+}
+void JP(u32 eff_add){
+	if(GET_FLAG(PF)) IP=eff_add;
+}
+void JPE(u32 eff_add){
+	if(GET_FLAG(PF)) IP=eff_add;
+}
+void JPO(u32 eff_add){
+	if(!GET_FLAG(PF)) IP=eff_add;
+}
+void JS(u32 eff_add){
+	if(GET_FLAG(SF)) IP=eff_add;
+}
+void JZ(u32 eff_add){
+	if(GET_FLAG(ZF)) IP=eff_add;
+}
+
+void LAHF(){
+	SET_LOW(&AX,FLAGS & 0x00ff);
+}
+
+void LDS_Reg_Mem(s16* reg,u32 eff_add){
+	*reg=MEM[eff_add];
+	DS=MEM[eff_add+4];
+}
+
+void LEA_Mem_Reg(s16* reg,u32 eff_add){
+	*reg=eff_add;
+}
+
+void LES(s16* reg,u32 eff_add){
+	*reg=MEM[eff_add];
+	ES=MEM[eff_add+4];
+}
+void LODSB(){
+	SET_LOW(&AX,MEM[DS+SI]);
+	(GET_FLAG(DF)) ? SI++ : SI--;
+}
+
+void LODSW(){
+	AX=MEM[DS+SI];
+	(GET_FLAG(DF)) ? SI++ : SI--;
+}
+
+void LOOP(u32 eff_add){
+	CX--;
+	if(!CX) IP=eff_add;
+}
+
+void LOOPE(u32 eff_add){
+	CX--;
+	if(!CX && GET_FLAG(ZF)) IP=eff_add;
+}
+
+void LOOPNE(u32 eff_add){
+	CX--;
+	if(!CX && !GET_FLAG(ZF)) IP=eff_add;
+}
+
+void LOOPZ(u32 eff_add){
+	CX--;
+	if(!CX && !GET_FLAG(ZF)) IP=eff_add;
+}
 

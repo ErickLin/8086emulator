@@ -18,7 +18,7 @@ void print_mem_rg(u32 start,u32 end){
 
 void print_regs(){
 	printf("General Purpose:\n");
-	printf("AX: 0x%04hx\nBX: 0x%04hx\nCX: 0x%04hx\nDX: 0x%04hx\nSI: 0x%04hx\nDI: 0x%04hx\nBP: 0x%04hx\nSP: 0x%04hx\n",AX,BX,CX,DX,SI,DI,BP,SP);
+	printf("AX: 0x%04hx\nBX: 0x%04hx\nCX: 0x%04hx\nDX: 0x%04hx\nSI: 0x%04hx\nDI: 0x%04hx\nBP: 0x%04hx\nSP: 0x%04hx\n",AX,BX,CX,DX,SI,DI,BP,SP_);
 	printf("Segment Registers:\n");
 	printf("CS: 0x%04hx\nDS: 0x%04hx\nES: 0x%04hx\nSS: 0x%04hx\n",CS,DS,ES,SS);
 	printf("Special Purpose:\n");
