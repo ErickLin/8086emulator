@@ -86,7 +86,7 @@ void AND_Mem_Imm(u32,s16);
 void AND_Reg_Imm(s16*,s16);
 
 
-void CALL(); //Implement THIS ********** once Push and pop are up
+void CALL(u32); //Implement TODO ********** once Push and pop are up
 
 void CBW();
 
@@ -109,19 +109,25 @@ void DAA();
 void DAS();
 void DEC_Reg(s16*);
 void DEC_Mem(u32);
-void DIV_Reg(s16*); //DIV not clear! mplement THIS ********** 
-void DIV_Mem(u32); //THIS
-void HLT(); //THIS figure this out too
-void IDIV_Reg(); //THIS
-void IDIV_Mem(); //THIS
-void IMUL_Reg(); //THIS
-void IMUL_Mem(); //THIS
-void IN(); //THIS
+void DIV_Reg_8b(s16*);
+void DIV_Mem_8b(u32); 
+void DIV_Reg_16b(s16*); 
+void DIV_Mem_16b(u32); 
+void HLT(); //TODO figure out too
+void IDIV_Reg_8b(s16*);
+void IDIV_Mem_8b(u32); 
+void IDIV_Reg_16b(s16*); 
+void IDIV_Mem_16b(u32); 
+void IMUL_Reg_8b(s16*); 
+void IMUL_Mem_8b(u32);
+void IMUL_Reg_16b(s16*);
+void IMUL_Mem_16b(u32); 
+void IN(); //TODO
 void INC_Reg(s16*);
 void INC_Mem(u32);
-void INT(u32); //THIS
+void INT(u32); //TODO
 void INTO();
-void IRET(); //THIS
+void IRET(); //TODO
 
 
 

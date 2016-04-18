@@ -251,6 +251,14 @@ void AND_Reg_Imm(s16* reg,s16 imm){
 	*reg=res;
 }
 
+void CALL(u32 eff_add){
+	MEM[SP]=IP;
+	SP+=4;
+	MEM[SP]=CS;
+	SP+=4;
+	IP=eff_add;
+}
+
 
 void CBW(){
 	if((0x80) & AX) SET_HI(&AX,0x00ff);
@@ -373,6 +381,59 @@ void DEC_Mem(u32 eff_add){
 	if(GET_FLAG(CF) != carry){ TOGGLE_FLAG(CF);}
 }
 
+void DIV_Reg_8b(s16* reg){
+	SET_LOW(&AX,AX/((u16)*reg));
+	SET_HI(&AX,AX%((u16)*reg));
+}
+void DIV_Mem_8b(u32 eff_add){
+	SET_LOW(&AX,AX/((u16)MEM[eff_add]));
+	SET_HI(&AX,AX%((u16)MEM[eff_add]));
+}
+void DIV_Reg_16b(s16* reg){
+	u32 merge=(DX << 16) | AX;
+	AX=merge/((u16)*reg);
+	DX=merge%((u16)*reg);
+}
+void DIV_Mem_16b(u32 eff_add){
+	u32 merge=(DX << 16) | AX;
+	AX=merge/((u16)MEM[eff_add]);
+	DX=merge%((u16)MEM[eff_add]);
+}
+
+void IDIV_Reg_8b(s16* reg){
+	SET_LOW(&AX,AX/(*reg));
+	SET_HI(&AX,AX%(*reg));
+}
+void IDIV_Mem_8b(u32 eff_add){
+	SET_LOW(&AX,AX/(MEM[eff_add]));
+	SET_HI(&AX,AX%(MEM[eff_add]));
+}
+void IDIV_Reg_16b(s16* reg){
+	u32 merge=(DX << 16) | AX;
+	AX=merge/(*reg);
+	DX=merge%(*reg);
+}
+void IDIV_Mem_16b(u32 eff_add){
+	u32 merge=(DX << 16) | AX;
+	AX=merge/(MEM[eff_add]);
+	DX=merge%(MEM[eff_add]);
+}
+
+void IMUL_Reg_8b(s16* reg){
+	s32 temp=GET_LOW(AX)*(*reg);
+	//NEED to set flags too daniel you're drunk go to bed
+	AX=temp;
+}
+void IMUL_Mem_8b(u32 eff_add){
+	AX=GET_LOW(AX)*(MEM[eff_add]);
+}
+void IMUL_Reg_16b(s16 * reg){
+	u32 temp = AX*(*reg);
+	DX=(temp >> 0xf) & 0x00ff;
+	AX=temp;
+}
+void IMUL_Mem_16b(u32 eff_add); 
+
 void INC_Reg(s16* reg){
 	u16 carry=GET_FLAG(CF);
 	ADD_Reg_Imm(reg,(s16)(*reg + 1));
@@ -385,7 +446,7 @@ void INC_Mem(u32 eff_add){
 }
 
 void INT(u32 i){
-	
+
 }
 
 void INTO(){
