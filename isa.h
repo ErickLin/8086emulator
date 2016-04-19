@@ -90,6 +90,7 @@ u8 OVERFLOW_SUM(u16,u16);
 void FLAG_CHECK(u32,u8,u8,u8,u8,u8);
 
 u32 MMM(u8);
+u32 EA(u8);
 u8 RRR(u8);
 
 //ISA implementation
@@ -136,5 +137,23 @@ void HLT(); //TODO
 
 void IDIV(u8,u8,u8,s8,s16);
 
+void IMUL(u8,u8,u8,s8,s16);
+
+void INC(u8,u8,u8,s8,s16);
+
+void INT(); //Eek
+
+void INTO(); //Eek again
+
+void IRET();
+
+void LAHF();
+
+void LDS(u8,u8,u8,s8,s16);
+void LES(u8,u8,u8,s8,s16);
+void LEA(u8,u8,u8,s8,s16);
+
+void LODSB();
+void LODSW();
 
 #endif

@@ -69,6 +69,35 @@ u32 MMM(u8 mmm){
 	}	
 }
 
+u32 EA(u8 mmm){
+	switch(mmm){
+		case 0:
+			return BX+SI;
+			break;
+		case 1:
+			return BX+DI;
+			break;
+		case 2:
+			return BP+SI;
+			break;
+		case 3:
+			return BP+DI;
+			break;
+		case 4:
+			return SI;
+			break;
+		case 5:
+			return DI;
+			break;
+		case 6:
+			return BP;
+			break;
+		case 7:
+			return BX;
+			break;
+	}	
+}
+
 u8 RRR(u8 rrr){
 	switch(rrr){
 		case 0:
@@ -886,3 +915,183 @@ void IDIV(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
 
 	}
 }
+
+void IMUL(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
+	u32 temp;
+	u32 res;
+	s16 *reg;
+	s16 *ax=REG(AX);
+	s16 *ds;
+	u32 abs_addr;
+	s16 *dx=REG(DX);
+	switch(oo){
+		case 0:
+			if(mmm == 6){ ds=REG(DS); abs_addr=ABS(*ds,imm16);}
+			else {abs_addr=MMM(mmm);}
+			break;
+		case 1:
+			abs_addr=MMM(mmm) + imm8;
+			break;
+		case 2:
+			abs_addr=MMM(mmm) + imm16;
+			break;
+		case 3:
+			reg=REG(mmm);
+			break;
+	}
+	if(0<=oo && oo>=3){
+		if(w){
+			temp=*ax;
+			*ax=temp*MEM[abs_addr];
+			*dx=(temp*MEM[abs_addr] >> 16) & 0x0000ffff;
+		}
+		else{
+			SET_LOW(ax,GET_LOW(*ax)*MEM[abs_addr]);
+		}
+	}else{
+		if(w){
+			temp=*ax;
+			*ax=temp*(*reg);
+			*dx=(temp*(*reg) >> 16) & 0x0000ffff;
+		}
+		else{
+			SET_LOW(ax,GET_LOW(*ax)*(*reg));
+		}
+
+	}
+	(!((SIGN(temp) && SIGN(*ax)) || (!SIGN(temp) && !SIGN(*ax))))  ? SET_FLAG(OF) : CLR_FLAG(OF);
+	FLAG_CHECK(*ax,1,1,1,1,1);
+}
+
+void INC(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
+	s16* reg;
+	s16 *ds;
+	u32 abs_addr;
+	u32 res;
+	switch(oo){
+		case 0:
+			if(mmm == 6){ ds=REG(DS); abs_addr=ABS(*ds,imm16);}
+			else {abs_addr=MMM(mmm);}
+			res=MEM[abs_addr];
+			MEM[abs_addr]=MEM[abs_addr]+1;
+			break;
+		case 1:
+			abs_addr=MMM(mmm) + imm8;
+			res=MEM[abs_addr];
+			MEM[abs_addr]=MEM[abs_addr]+1;
+			break;
+		case 2:
+			abs_addr=MMM(mmm) + imm16;
+			res=MEM[abs_addr];
+			MEM[abs_addr]=MEM[abs_addr]+1;
+			break;
+		case 3:
+			reg=REG(mmm);
+			res=*reg;
+			*reg=*reg+1;
+			break;
+	}
+	(OVERFLOW_SUM(res,1)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+	FLAG_CHECK(res+1,0,1,1,1,1);
+}
+
+
+void IRET(){
+	s16 *sp=REG(SP);
+	s16 *ip=REG(IP);
+	s16 *cs=REG(CS);
+	s16 *flags=REG(FLAGS);
+	*ip=MEM[*sp]+1;
+	(*sp)+=2;
+	*cs=MEM[*sp];
+	(*sp)+=2;
+	*flags=MEM[*sp];
+	(*sp)+=2;
+}
+
+void LAHF(){
+	s16 *ax=REG(AX);
+	SET_HI(ax,*REG(FLAGS));
+}
+
+void LDS(u8 oo, u8 rrr,u8 mmm,s8 imm8,s16 imm16){
+	s16 *reg=REG(RRR(rrr));
+	s16 *ds=REG(DS);
+	u32 abs_addr;
+	switch(oo){
+		case 0:
+			if(mmm == 6){ abs_addr=ABS(*ds,imm16);}
+			else {abs_addr=MMM(mmm);}
+			break;
+		case 1:
+			abs_addr=MMM(mmm) + imm8;
+			break;
+		case 2:
+			abs_addr=MMM(mmm) + imm16;
+			break;
+	}
+	*reg=MEM[abs_addr];
+	*ds=MEM[abs_addr+2];	
+}
+
+void LES(u8 oo, u8 rrr,u8 mmm,s8 imm8,s16 imm16){
+	s16 *reg=REG(RRR(rrr));
+	s16 *ds=REG(DS);
+	s16 *es=REG(ES);
+	u32 abs_addr;
+	switch(oo){
+		case 0:
+			if(mmm == 6){ abs_addr=ABS(*ds,imm16);}
+			else {abs_addr=MMM(mmm);}
+			break;
+		case 1:
+			abs_addr=MMM(mmm) + imm8;
+			break;
+		case 2:
+			abs_addr=MMM(mmm) + imm16;
+			break;
+	}
+	*reg=MEM[abs_addr];
+	*es=MEM[abs_addr+2];	
+}
+
+void LEA(u8 oo, u8 rrr,u8 mmm,s8 imm8,s16 imm16){
+	s16 *reg=REG(RRR(rrr));
+	s16 *ds=REG(DS);
+	s16 *es=REG(ES);
+	u32 abs_addr;
+	switch(oo){
+		case 0:
+			if(mmm == 6){ abs_addr=imm16;}
+			else {abs_addr=EA(mmm);}
+			break;
+		case 1:
+			abs_addr=EA(mmm) + imm8;
+			break;
+		case 2:
+			abs_addr=EA(mmm) + imm16;
+			break;
+	}
+	*reg=MEM[abs_addr];
+}
+
+void LODSB(){
+	s16 *si=REG(SI);
+	s16 *ds=REG(DS);
+	s16 *ax=REG(AX);
+	SET_LOW(ax,MEM[ABS(*ds,*si)]);
+	(GET_FLAG(DF)) ? (*si)++: (*si)--;
+}
+
+void LODSW(){
+	s16 *si=REG(SI);
+	s16 *ds=REG(DS);
+	s16 *ax=REG(AX);
+	SET_LOW(ax,MEM[ABS(*ds,*si)]);
+	if(GET_FLAG(DF)){(*si)+=2;} else{(*si)-=2;}
+}
+
+
+
+
+
