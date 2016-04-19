@@ -141,82 +141,117 @@ void AAS(){
 	CLR_NIB(ax,1);
 }
 
-void ADC(u8 d,u8 w,u8 oo,u8 rrr,u8 mmm,s16 imm){
+//RM means just involving registers and memory
+//RMI means involving registers, memory, or immediates
+
+void ADC_RM(u8 d,u8 w,u8 oo,u8 rrr,u8 mmm,s8 imm8,s16 imm16){
+	s16 *reg_a;
+	s16 *reg_b;
+	u32 abs_addr;
+	u32 res;
 	switch(oo){
 		case 0:
-			ADC_Mem(d,rrr,mmm);
+			reg_a=REG(RRR(rrr));
+			abs_addr=MMM(mmm);
+			res=*reg_a + MEM[abs_addr] + GET_FLAG(CF);
+			if(d){ MEM[abs_addr] = res;}
+			else{ *reg_a=res;}
+			(OVERFLOW_SUM(*reg_a,MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			if(!GET_FLAG(OF)){
+				(OVERFLOW_SUM(*reg_a+MEM[abs_addr],GET_FLAG(CF))) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			}
 			break;
 		case 1:
-			ADC_Mem_8b(d,rrr,mmm,(s8)imm);
+			reg_a=REG(RRR(rrr));
+			abs_addr=MMM(mmm)+imm8;
+			res=*reg_a + MEM[abs_addr] + GET_FLAG(CF);
+			if(d){ MEM[abs_addr] = res;}
+			else{ *reg_a=res;}
+			(OVERFLOW_SUM(*reg_a,MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			if(!GET_FLAG(OF)){
+				(OVERFLOW_SUM(*reg_a+MEM[abs_addr],GET_FLAG(CF))) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			}
 			break;
 		case 2:
-			ADC_Mem_16b(d,rrr,mmm,imm);
+			reg_a=REG(RRR(rrr));
+			abs_addr=MMM(mmm)+imm16;
+			res=*reg_a + MEM[abs_addr] + GET_FLAG(CF);
+			if(d){ MEM[abs_addr] = res;}
+			else{ *reg_a=res;}
+			(OVERFLOW_SUM(*reg_a,MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			if(!GET_FLAG(OF)){
+				(OVERFLOW_SUM(*reg_a+MEM[abs_addr],GET_FLAG(CF))) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			}
+			break;
 			break;
 		case 3:
-			(w) ? ADC_Reg_16b(d,rrr,mmm) : ADC_Reg_8b(d,rrr,mmm);
+			reg_a=REG(RRR(rrr));
+			reg_b=REG(RRR(mmm));
+			if(d){ *reg_b = res;}
+			else{ *reg_a=res;}
+			(OVERFLOW_SUM(*reg_a,*reg_b)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			if(!GET_FLAG(OF)){
+				(OVERFLOW_SUM(*reg_a+*reg_b,GET_FLAG(CF))) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			}
 			break;
 	}
+	FLAG_CHECK(res,1,1,1,1,1);
 }
 
-void ADC_Mem(u8 d,u8 rrr,u8 mmm){
-	s16 *reg=REG(RRR(rrr));
-	u32 abs_addr=MMM(mmm);
-	u32 res=*reg+MEM[abs_addr] + GET_FLAG(CF);
-	FLAG_CHECK(res,1,1,1,1,1);
-	if(d){
-		MEM[abs_addr]=res;
-	}else{ 
-		*reg=res;
+void ADC_Acc_Imm(u8 w,s8 imm8,s16 imm16){
+	s16*reg=REG(AX);
+	u32 res;
+	if(w){
+		res=*reg+imm16 + GET_FLAG(CF);
+		(OVERFLOW_SUM(*reg,imm16)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			if(!GET_FLAG(OF)){
+				(OVERFLOW_SUM(*reg+imm16,GET_FLAG(CF))) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			}
 	}
+	else{
+		res=*reg+imm8 + GET_FLAG(CF);
+		(OVERFLOW_SUM(*reg,imm8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			if(!GET_FLAG(OF)){
+				(OVERFLOW_SUM(*reg+imm8,GET_FLAG(CF))) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			}
+	}
+	FLAG_CHECK(res,1,1,1,1,1);
 }
 
-void ADC_Mem_8b(u8 d,u8 rrr,u8 mmm,s8 imm){
-	s16 *reg=REG(RRR(rrr));
-	u32 abs_addr=MMM(mmm)+imm;
-	u32 res=*reg+MEM[abs_addr] + GET_FLAG(CF);
-	FLAG_CHECK(res,1,1,1,1,1);
-	if(d){
-		MEM[abs_addr]=res;
-	}else{ 
-		*reg=res;
+void ADC_RMI(u8 s,u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
+	s16 * reg;
+	u32 abs_addr;
+	u32 res;
+	if(s){
+		if(w){
+			res=*reg+(s16)imm8+GET_FLAG(CF);
+			(OVERFLOW_SUM(*reg,(s16)imm8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			if(!GET_FLAG(OF)){
+				(OVERFLOW_SUM(*reg+(s16)imm8,GET_FLAG(CF))) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			}
+		}
+		else{
+			res=*reg+imm8+GET_FLAG(CF);
+			(OVERFLOW_SUM(*reg,imm8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			if(!GET_FLAG(OF)){
+				(OVERFLOW_SUM(*reg+imm8,GET_FLAG(CF))) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			}
+		}
 	}
-}
-void ADC_Mem_16b(u8 d,u8 rrr,u8 mmm,s16 imm){
-	s16 *reg=REG(RRR(rrr));
-	u32 abs_addr=MMM(mmm)+imm;
-	u32 res=*reg+MEM[abs_addr] + GET_FLAG(CF);
-	FLAG_CHECK(res,1,1,1,1,1);
-	if(d){
-		MEM[abs_addr]=res;
-	}else{ 
-		*reg=res;
+	else{
+			res=*reg+imm16+GET_FLAG(CF);
+			(OVERFLOW_SUM(*reg,imm16)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			if(!GET_FLAG(OF)){
+				(OVERFLOW_SUM(*reg+imm16,GET_FLAG(CF))) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			}
 	}
-}
-void ADC_Reg_8b(u8 d,u8 rrr,u8 mmm){
-	s16 *reg_a=REG(RRR(rrr));
-	s16 *reg_b=REG(RRR(mmm));
-	u32 res=GET_LOW(*reg_a)+GET_LOW(*reg_b) + GET_FLAG(CF);
 	FLAG_CHECK(res,1,1,1,1,1);
-	if(d){
-		SET_LOW(reg_b,res);
-	}else{ 
-		SET_LOW(reg_a,res);
-	}
 }
-void ADC_Reg_16b(u8 d,u8 rrr,u8 mmm){
-	s16 *reg_a=REG(RRR(rrr));
-	s16 *reg_b=REG(RRR(mmm));
-	u32 res=*reg_a+*reg_b + GET_FLAG(CF);
-	FLAG_CHECK(res,1,1,1,1,1);
-	if(d){
-		*reg_b=res;
-	}else{ 
-		*reg_a=res;
-	}
-}
+
+
+
 
 /*
-
 void ADD_Reg_Mem(s16* reg,u32 eff_add){
 	u32 carry=GET_FLAG(CF);
 	u32 sum= *reg + MEM[eff_add];

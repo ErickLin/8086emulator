@@ -99,12 +99,10 @@ void AAD();
 void AAM();
 void AAS();
 
-void ADC(u8,u8,u8,u8,u8,s16);
-void ADC_Mem(u8,u8,u8);
-void ADC_Mem_8b(u8,u8,u8,s8);
-void ADC_Mem_16b(u8,u8,u8,s16);
-void ADC_Reg_8b(u8,u8,u8);
-void ADC_Reg_16b(u8,u8,u8);
+
+void ADC_RM(u8,u8,u8,u8,u8,s8,s16);
+void ADC_Acc_Imm(u8,s8,s16);
+void ADC_RMI(u8,u8,u8,u8,s8,s16);
 
 /*
 void ADD_Reg_Mem(s16*,u32);
