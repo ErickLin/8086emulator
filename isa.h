@@ -102,7 +102,15 @@ void AAS();
 
 void ADC_RM(u8,u8,u8,u8,u8,s8,s16);
 void ADC_Acc_Imm(u8,s8,s16);
-void ADC_RMI(u8,u8,u8,u8,s8,s16);
+void ADC_RMI(u8,u8,u8,u8,s8,s16,s8,s16);
+
+void ADD_RM(u8,u8,u8,u8,u8,s8,s16);
+void ADD_Acc_Imm(u8,s8,s16);
+void ADD_RMI(u8,u8,u8,u8,s8,s16,s8,s16);
+
+void AND_RM(u8,u8,u8,u8,u8,s8,s16);
+void AND_Acc_Imm(u8,s8,s16);
+void AND_RMI(u8,u8,u8,u8,s8,s16,s8,s16);
 
 /*
 void ADD_Reg_Mem(s16*,u32);
