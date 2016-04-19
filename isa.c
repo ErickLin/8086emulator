@@ -124,6 +124,32 @@ u8 RRR(u8 rrr){
 	}	
 }
 
+u8 SSS(u8 sss){
+	switch(sss){
+		case 0:
+			return ES;
+			break;
+		case 1:
+			return CS;
+			break;
+		case 2:
+			return SS;
+			break;
+		case 3:
+			return DS;
+			break;
+		case 5:
+			return 0;
+			break;
+		case 6:
+			return 0;
+			break;
+		case 7:
+			return 0;
+			break;
+	}	
+}
+
 
 
 
@@ -1090,6 +1116,122 @@ void LODSW(){
 	SET_LOW(ax,MEM[ABS(*ds,*si)]);
 	if(GET_FLAG(DF)){(*si)+=2;} else{(*si)-=2;}
 }
+
+void MOV_MOFS_Acc(u8 d,u8 w,s8 imm8,s16 imm16){
+	s16 *ax=REG(AX);
+	if(d){
+		if(w){ MEM[ABS(CS,imm8)]=*ax;}
+		else{ MEM[ABS(CS,imm16)]=*ax;}
+	}
+	else{
+		if(w){ *ax=MEM[ABS(CS,imm8)];}
+		else{ *ax=MEM[ABS(CS,imm16)]=*ax;}
+	}
+}
+
+void MOV_Reg_Imm(u8 w,u8 rrr,s8 imm8,s16 imm16){
+	s16 *reg=REG(RRR(rrr));
+	if(w){
+		*reg=imm16;
+	}
+	else{
+		*reg=imm8;
+	}
+}
+
+void MOV_Mem_Imm(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16,s8 imm_dat8,s16 imm_dat16){
+	s16 *reg;
+	s16 *ds;
+	u32 abs_addr;
+	switch(oo){
+		case 0:
+			if(mmm == 6){ ds=REG(DS); abs_addr=ABS(*ds,imm16);}
+			else {abs_addr=MMM(mmm);}
+			break;
+		case 1:
+			abs_addr=MMM(mmm) + imm8;
+			break;
+		case 2:
+			abs_addr=MMM(mmm) + imm16;
+			break;
+	}
+	if(w){
+		MEM[abs_addr]=imm_dat16;
+	}
+	else{
+		MEM[abs_addr]=imm_dat8;
+	}
+	
+}
+
+void MOV_Reg_Reg(u8 w,u8 rrr,u8 mmm){
+	s16 *reg_a=REG(RRR(rrr));
+	s16 *reg_b=REG(RRR(mmm));
+	*reg_a=*reg_b; //Check w bit later
+}
+
+void MOV_Reg_Mem(u8 d,u8 w,u8 oo,u8 rrr,u8 mmm,s8 imm8,s16 imm16){
+	u32 abs_addr;
+	s16 *reg=REG(RRR(rrr));
+	s16 *ds=REG(DS);
+	switch(oo){
+		case 0:
+			if(mmm == 6){ ds=REG(DS); abs_addr=ABS(*ds,imm16);}
+			else {abs_addr=MMM(mmm);}
+			break;
+		case 1:
+			abs_addr=MMM(mmm) + imm8;
+			break;
+		case 2:
+			abs_addr=MMM(mmm) + imm16;
+			break;
+	}
+	if(d){
+		MEM[abs_addr]=*reg;
+	}
+	else{
+		*reg=MEM[abs_addr];
+	}
+}
+
+void MOV_Reg_Seg(u8 d,u8 w,u8 sss,u8 mmm){
+	s16 *reg_a=REG(SSS(sss));
+	s16 *reg_b=REG(RRR(mmm));
+	if(d){
+		*reg_b=*reg_a;
+	}
+	else{
+		*reg_a=*reg_b;
+	}
+}
+
+void MOV_Mem_Seg(u8 d,u8 oo,u8 sss,u8 mmm,s8 imm8,s16 imm16){
+	u32 abs_addr;
+	s16 *reg=REG(SSS(sss));
+	s16 *ds=REG(DS);
+	switch(oo){
+		case 0:
+			if(mmm == 6){ ds=REG(DS); abs_addr=ABS(*ds,imm16);}
+			else {abs_addr=MMM(mmm);}
+			break;
+		case 1:
+			abs_addr=MMM(mmm) + imm8;
+			break;
+		case 2:
+			abs_addr=MMM(mmm) + imm16;
+			break;
+	}
+	if(d){
+		MEM[abs_addr]=*reg;
+	}
+	else{
+		*reg=MEM[abs_addr];
+	}
+}
+
+
+
+
 
 
 

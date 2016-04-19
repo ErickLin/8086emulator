@@ -92,6 +92,8 @@ void FLAG_CHECK(u32,u8,u8,u8,u8,u8);
 u32 MMM(u8);
 u32 EA(u8);
 u8 RRR(u8);
+u8 SSS(u8);
+
 
 //ISA implementation
 
@@ -155,5 +157,14 @@ void LEA(u8,u8,u8,s8,s16);
 
 void LODSB();
 void LODSW();
+
+void MOV_MOFS_Acc(u8,u8,s8,s16);
+void MOV_Reg_Imm(u8,u8,s8,s16);
+void MOV_Mem_Imm(u8,u8,u8,s8,s16,s8,s16);
+void MOV_Reg_Reg(u8,u8,u8);
+void MOV_Reg_Mem(u8,u8,u8,u8,u8,s8,s16);
+void MOV_Reg_Seg(u8,u8,u8,u8);
+void MOV_Mem_Seg(u8,u8,u8,u8,s8,s16);
+
 
 #endif
