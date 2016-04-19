@@ -84,6 +84,8 @@ void CLR_NIB(s16*,u16);
 s16* REG(u8);
 u8 PARITY(s16);
 u8 OVERFLOW_SUM(u16,u16);
+u8 OVERFLOW_OR(u16,u16);
+
 
 //Flag checks and sets used a ton
 //Must check overflow yourself in function where you call this
@@ -166,5 +168,15 @@ void MOV_Reg_Mem(u8,u8,u8,u8,u8,s8,s16);
 void MOV_Reg_Seg(u8,u8,u8,u8);
 void MOV_Mem_Seg(u8,u8,u8,u8,s8,s16);
 
+void MOVSB();
+void MOVSW();
+
+void MUL(u8,u8,u8,s8,s16);
+void NEG(u8,u8,u8,s8,s16);
+void NOT(u8,u8,u8,s8,s16);
+
+void OR_RM(u8,u8,u8,u8,u8,s8,s16);
+void OR_Acc_Imm(u8,s8,s16);
+void OR_RMI(u8,u8,u8,u8,s8,s16,s8,s16);
 
 #endif

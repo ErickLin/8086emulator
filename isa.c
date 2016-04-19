@@ -31,6 +31,13 @@ u8 OVERFLOW_SUM(u16 a,u16 b){
 	return 0;
 }
 
+u8 OVERFLOW_OR(u16 a,u16 b){
+	if((SIGN(a) && SIGN(b)) || (!SIGN(a) && !SIGN(b))){
+		if(SIGN(a) && !(SIGN(a | b))){ return 1;}
+	}
+	return 0;
+}
+
 void FLAG_CHECK(u32 data,u8 c,u8 z,u8 s,u8 p,u8 a){
 	if(c) {(CARRY(data)) ? SET_FLAG(CF) : CLR_FLAG(CF);}
 	if(z){(!data) ? SET_FLAG(ZF) : CLR_FLAG(ZF);}
@@ -1229,7 +1236,273 @@ void MOV_Mem_Seg(u8 d,u8 oo,u8 sss,u8 mmm,s8 imm8,s16 imm16){
 	}
 }
 
+void MOVSB(){
+	s16 *si=REG(SI);
+	s16 *ds=REG(DS);
+	s16 *di=REG(DI);
+	s16 *es=REG(ES);
+	MEM[ABS(*es,*di)]=MEM[ABS(*ds,*si)];
+	if(!GET_FLAG(DF)){(*si)++;} else{(*si)--;}
+}
 
+void MOVSW(){
+	s16 *si=REG(SI);
+	s16 *ds=REG(DS);
+	s16 *di=REG(DI);
+	s16 *es=REG(ES);
+	MEM[ABS(*es,*di)]=MEM[ABS(*ds,*si)];
+	if(!GET_FLAG(DF)){(*si)+=2;} else{(*si)-=2;}
+}
+
+void MUL(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
+	u32 temp;
+	u32 res;
+	s16 *reg;
+	s16 *ax=REG(AX);
+	s16 *ds;
+	u32 abs_addr;
+	s16 *dx=REG(DX);
+	switch(oo){
+		case 0:
+			if(mmm == 6){ ds=REG(DS); abs_addr=ABS(*ds,imm16);}
+			else {abs_addr=MMM(mmm);}
+			break;
+		case 1:
+			abs_addr=MMM(mmm) + imm8;
+			break;
+		case 2:
+			abs_addr=MMM(mmm) + imm16;
+			break;
+		case 3:
+			reg=REG(mmm);
+			break;
+	}
+	if(0<=oo && oo>=3){
+		if(w){
+			temp=*ax;
+			*ax=(s16)temp*MEM[abs_addr];
+			*dx=(s16)((temp*MEM[abs_addr] >> 16) & 0x0000ffff);
+		}
+		else{
+			SET_LOW(ax,GET_LOW(*ax)*MEM[abs_addr]);
+		}
+	}else{
+		if(w){
+			temp=*ax;
+			*ax=temp*(*reg);
+			*dx=(temp*(*reg) >> 16) & 0x0000ffff;
+		}
+		else{
+			SET_LOW(ax,GET_LOW(*ax)*(*reg));
+		}
+
+	}
+	(!((SIGN(temp) && SIGN(*ax)) || (!SIGN(temp) && !SIGN(*ax))))  ? SET_FLAG(OF) : CLR_FLAG(OF);
+	FLAG_CHECK(*ax,1,1,1,1,1);
+}
+
+void NEG(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
+	u32 temp;
+	u32 res;
+	s16 *reg=REG(MMM(mmm));
+	s16 *ds;
+	u32 abs_addr;
+	switch(oo){
+		case 0:
+			if(mmm == 6){ ds=REG(DS); abs_addr=ABS(*ds,imm16);}
+			else {abs_addr=MMM(mmm);}
+			break;
+		case 1:
+			abs_addr=MMM(mmm) + imm8;
+			break;
+		case 2:
+			abs_addr=MMM(mmm) + imm16;
+			break;
+		case 3:
+			reg=REG(mmm);
+			break;
+	}
+	temp=*reg;
+	if(0<=oo && oo>=3){
+		res=TC(MEM[abs_addr]);
+		MEM[abs_addr]=TC(MEM[abs_addr]);
+		
+	}else{
+		res=TC(*reg);
+		if(w){
+			*reg=res;
+		}
+		else{
+			SET_LOW(reg,TC(GET_LOW(*reg)));
+		}
+
+	}
+	(!((SIGN(temp) && SIGN(res)) || (!SIGN(temp) && !SIGN(res))))  ? SET_FLAG(OF) : CLR_FLAG(OF);
+	FLAG_CHECK(TC(*reg),1,1,1,1,1);
+}
+
+void NOT(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
+	u32 temp;
+	u32 res;
+	s16 *reg=REG(MMM(mmm));
+	s16 *ds;
+	u32 abs_addr;
+	switch(oo){
+		case 0:
+			if(mmm == 6){ ds=REG(DS); abs_addr=ABS(*ds,imm16);}
+			else {abs_addr=MMM(mmm);}
+			break;
+		case 1:
+			abs_addr=MMM(mmm) + imm8;
+			break;
+		case 2:
+			abs_addr=MMM(mmm) + imm16;
+			break;
+		case 3:
+			reg=REG(mmm);
+			break;
+	}
+	temp=*reg;
+	if(0<=oo && oo>=3){
+		res=~(MEM[abs_addr]);
+		MEM[abs_addr]=~(MEM[abs_addr]);
+		
+	}else{
+		res=~(*reg);
+		if(w){
+			*reg=res;
+		}
+		else{
+			SET_LOW(reg,~(GET_LOW(*reg)));
+		}
+
+	}
+	(!((SIGN(temp) && SIGN(res)) || (!SIGN(temp) && !SIGN(res))))  ? SET_FLAG(OF) : CLR_FLAG(OF);
+	FLAG_CHECK(~(*reg),1,1,1,1,1);
+}
+
+void OR_RM(u8 d,u8 w,u8 oo,u8 rrr,u8 mmm,s8 imm8,s16 imm16){
+	s16 *reg_a;
+	s16 *reg_b;
+	s16 *ds;
+	u32 abs_addr;
+	u32 res;
+	switch(oo){
+		case 0:
+			reg_a=REG(RRR(rrr));
+			if(mmm == 6){ ds=REG(DS); abs_addr=ABS(*ds,imm16);}
+			else {abs_addr=MMM(mmm);}
+			res=*reg_a | MEM[abs_addr];
+			if(d){ MEM[abs_addr] = res;}
+			else{ *reg_a=res;}
+			(OVERFLOW_OR(*reg_a,MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			break;
+		case 1:
+			reg_a=REG(RRR(rrr));
+			abs_addr=MMM(mmm)+imm8;
+			res=*reg_a | MEM[abs_addr];
+			if(d){ MEM[abs_addr] = res;}
+			else{ *reg_a=res;}
+			(OVERFLOW_OR(*reg_a,MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			break;
+		case 2:
+			reg_a=REG(RRR(rrr));
+			abs_addr=MMM(mmm)+imm16;
+			res=*reg_a | MEM[abs_addr];
+			if(d){ MEM[abs_addr] = res;}
+			else{ *reg_a=res;}
+			(OVERFLOW_OR(*reg_a,MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			break;
+			break;
+		case 3:
+			reg_a=REG(RRR(rrr));
+			reg_b=REG(RRR(mmm));
+			res=*reg_a | *reg_b;
+			if(w){
+				if(d){ *reg_b=res;}
+				else{ *reg_a=res;}
+			}
+			else{
+				if(d){ SET_LOW(reg_b,res);}
+				else{ SET_LOW(reg_a,res);}
+			}
+			(OVERFLOW_OR(*reg_a,*reg_b)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			break;
+	}
+	FLAG_CHECK(res,1,1,1,1,1);
+}
+
+void OR_Acc_Imm(u8 w,s8 imm8,s16 imm16){
+	s16*reg=REG(AX);
+	u32 res;
+	if(w){
+		res=*reg | imm16;
+		(OVERFLOW_OR(*reg,imm16)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+		*reg=res;
+	}
+	else{
+		res=*reg | imm8;
+		(OVERFLOW_OR(*reg,imm8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+		SET_LOW(reg,res);
+	}
+	FLAG_CHECK(res,1,1,1,1,1);
+}
+
+void OR_RMI(u8 s,u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16,s8 imm_dat8,s16 imm_dat16){
+	s16 * reg;
+	s16 *ds;
+	u32 abs_addr;
+	u32 res;
+	switch(oo){
+		case 1:
+			if(mmm == 6){ ds=REG(DS); abs_addr=ABS(*ds,imm16);}
+			else {abs_addr=MMM(mmm);}
+			break;
+		case 2:
+			abs_addr=MMM(mmm)+imm8;
+			break;
+		case 3:
+			abs_addr=MMM(mmm)+imm16;
+			break;
+
+	}
+	if(0<=oo && oo<=3){
+		if(s){
+			if(w){
+				res=MEM[abs_addr] | (s16)imm_dat8;
+				(OVERFLOW_OR(MEM[abs_addr],(s16)imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			}
+			else{
+				res=MEM[abs_addr] | imm_dat8;
+				(OVERFLOW_OR(MEM[abs_addr],imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			}
+		}
+		else{
+			res=MEM[abs_addr] | imm_dat16;
+			(OVERFLOW_OR(MEM[abs_addr],imm_dat16)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+		}
+	}
+	else{
+		if(s){
+			if(w){
+				res=*reg | (s16)imm_dat8;
+				(OVERFLOW_OR(*reg,(s16)imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+				*reg=res;
+			}
+			else{
+				res=*reg | imm_dat8;
+				(OVERFLOW_OR(*reg,imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+				SET_LOW(reg,res);
+			}
+		}
+		else{
+			res=*reg | imm_dat16;
+			(OVERFLOW_OR(*reg,imm_dat16)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			*reg=res;
+		}
+	}
+	FLAG_CHECK(res,1,1,1,1,1);
+}
 
 
 
