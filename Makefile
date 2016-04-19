@@ -1,8 +1,6 @@
 CC=gcc
 CFLAGS=-c
-#OBJS=execute.o graphics.o isa.o debug.o main.o
-OBJS=graphics.o isa.o debug.o main.o
-
+OBJS=execute.o graphics.o isa.o debug.o main.o
 
 all: $(OBJS)
 	$(CC) $(OBJS) -o 8086emulator -lSDL 
