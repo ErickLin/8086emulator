@@ -765,8 +765,10 @@ short exec_instr(char* opcode, short width, FILE* fp) {
         }
         // Execute the instruction 
         func_RM func = get_func_RM(opcode, width);
-        func(opcode[6], w - '0', str_to_int(oo, 2), str_to_int(rrr, 3)
-                , str_to_int(mmm, 3), imm8, imm16);
+        if (func) {
+            func(opcode[6], w - '0', str_to_int(oo, 2), str_to_int(rrr, 3)
+                    , str_to_int(mmm, 3), imm8, imm16);
+        }
     }
     instr_name = get_name_MR(opcode, width);
     if (instr_name) {
@@ -791,15 +793,19 @@ short exec_instr(char* opcode, short width, FILE* fp) {
             printf("  %s Reg,Reg", instr_name);
         }
         func_RM func = get_func_MR(opcode, width);
-        func(opcode[6], w - '0', str_to_int(oo, 2), str_to_int(rrr, 3)
-                , str_to_int(mmm, 3), imm8, imm16);
+        if (func) {
+            func(opcode[6], w - '0', str_to_int(oo, 2), str_to_int(rrr, 3)
+                    , str_to_int(mmm, 3), imm8, imm16);
+        }
     }
     instr_name = get_name_Acc_Imm(opcode, width);
     if (instr_name) {
         w = opcode[7];
         matches++;
         func_Acc_Imm func = get_func_Acc_Imm(opcode, width);
-        func(w - '0', imm8, imm16);
+        if (func) {
+            func(w - '0', imm8, imm16);
+        }
         printf("  %s Acc,Imm", instr_name);
     }
     instr_name = get_name_RMI8(opcode, width);
@@ -837,8 +843,10 @@ short exec_instr(char* opcode, short width, FILE* fp) {
             }
         }
         func_RMI func = get_func_RMI8(opcode, width);
-        func(opcode[6], w - '0', str_to_int(oo, 2), str_to_int(mmm, 3), imm8
-                , imm16, imm_dat8, -1);
+        if (func) {
+            func(opcode[6], w - '0', str_to_int(oo, 2), str_to_int(mmm, 3), imm8
+                    , imm16, imm_dat8, -1);
+        }
         printf("  %d", imm_dat8);
     }
     instr_name = get_name_RMI(opcode, width);
@@ -900,7 +908,11 @@ short exec_instr(char* opcode, short width, FILE* fp) {
                 printf("  %d", imm_dat16);
             }
         }
-        func_RMI func = get_func_RMI8(opcode, width);
+        func_RMI func = get_func_RMI(opcode, width);
+        if (func) {
+            func(opcode[6], w - '0', str_to_int(oo, 2), str_to_int(mmm, 3), imm8
+                    , imm16, imm_dat8, imm_dat16);
+        }
     }
     instr_name = get_name_M(opcode, width);
     if (instr_name) {
@@ -924,7 +936,9 @@ short exec_instr(char* opcode, short width, FILE* fp) {
             printf("  %s Reg", instr_name);
         }
         func_M func = get_func_M(opcode, width);
-        func(w - '0', str_to_int(oo, 2), str_to_int(mmm, 3), imm8, imm16);
+        if (func) {
+            func(w - '0', str_to_int(oo, 2), str_to_int(mmm, 3), imm8, imm16);
+        }
     }
     instr_name = get_name_M16(opcode, width);
     if (instr_name) {
@@ -947,7 +961,9 @@ short exec_instr(char* opcode, short width, FILE* fp) {
             printf("  %s RegWord", instr_name);
         }*/
         func_M16 func = get_func_M16(opcode, width);
-        func(str_to_int(oo, 2), str_to_int(mmm, 3), imm8, imm16);
+        if (func) {
+            func(str_to_int(oo, 2), str_to_int(mmm, 3), imm8, imm16);
+        }
     }
     instr_name = get_name_M1(opcode, width);
     if (instr_name) {
@@ -1015,7 +1031,9 @@ short exec_instr(char* opcode, short width, FILE* fp) {
             printf("  %s Reg16,Reg16", instr_name);
         }
         func_L func = get_func_L(opcode, width);
-        func(str_to_int(oo, 2), str_to_int(rrr, 3), str_to_int(mmm, 3), imm8, imm16);
+        if (func) {
+            func(str_to_int(oo, 2), str_to_int(rrr, 3), str_to_int(mmm, 3), imm8, imm16);
+        }
     }
     if (memcmp(opcode, "00110111", 8) == 0) {
         matches++;
