@@ -129,9 +129,6 @@ func_RM get_func_RM(char* opcode, short width) {
     if (memcmp(opcode, "0011101", 7) == 0) {
         return &CMP_RM;
     }
-    if (memcmp(opcode, "1000101", 7) == 0) {
-        return &MOV_Reg_Reg;
-    }
     if (memcmp(opcode, "0000101", 7) == 0) {
         return &OR_RM;
     }
@@ -254,9 +251,6 @@ func_RMI get_func_RMI8(char* opcode, short width) {
     }
     if (memcmp(opcode, "1000001", 7) == 0 && memcmp(opcode + 10, "111", 3) == 0) {
         return &CMP_RMI;
-    }
-    if (memcmp(opcode, "1100011", 7) == 0 && memcmp(opcode + 10, "000", 3) == 0) {
-        return &MOV_Mem_Imm;
     }
     if (memcmp(opcode, "1000001", 7) == 0 && memcmp(opcode + 10, "001", 3) == 0) {
         return &OR_RMI;
@@ -1178,6 +1172,89 @@ short exec_instr(char* opcode, short width, FILE* fp) {
             printf("  MOV Reg,Imm");
         }
         MOV_Reg_Imm(w - '0', str_to_int(rrr, 3), imm8, imm16);
+    }
+    if (width >= 16 && memcmp(opcode, "1000101", 7) == 0) {
+        w = opcode[7];
+        memcpy(oo, &opcode[8], 2);
+        memcpy(rrr, &opcode[10], 3);
+        memcpy(mmm, &opcode[13], 3);
+        if (memcmp(oo, "00", 2) == 0 && memcmp(mmm, "110", 3)) {
+            matches++;
+            printf("  %s Reg,Mem", instr_name);
+        } else if (width == 24 && (memcmp(oo, "00", 2) == 0
+                || (memcmp(oo, "01", 2) == 0))) {
+            imm8 = parse_imm8(&opcode[16]);
+            matches++;
+            printf("  %s Reg,Mem", instr_name);
+        } else if (width == 32 && memcmp(oo, "10", 2) == 0) {
+            imm16 = parse_imm16(&opcode[16]);
+            matches++;
+            printf("  %s Reg,Mem", instr_name);
+        } else if (memcmp(oo, "11", 2) == 0) {
+            matches++;
+            printf("  %s Reg,Reg", instr_name);
+        }
+        MOV_Reg_Reg( - '0', str_to_int(rrr, 3), str_to_int(mmm, 3));
+    }
+    if (width >= 16 && memcmp(opcode, "1100011", 7) == 0 && memcmp(opcode + 10, "000", 3) == 0) {
+        memcpy(oo, &opcode[8], 2);
+        memcpy(mmm, &opcode[13], 3);
+        char imm_dat8 = -1;
+        short imm_dat16 = -1;
+        if (memcmp(oo, "00", 2) == 0 && memcmp(mmm, "110", 3)) {
+            if (w == '0' && width == 24) {
+                imm_dat8 = parse_imm8(&opcode[16]);
+                matches++;
+                printf("  %s Mem,Imm", instr_name);
+                printf("  %d", imm_dat8);
+            } else if (width == 32) {
+                imm_dat16 = parse_imm16(&opcode[16]);
+                matches++;
+                printf("  %s Mem,Imm", instr_name);
+                printf("  %d", imm_dat16);
+            }
+        } else if (width >= 24 && memcmp(oo, "01", 2) == 0) {
+            imm8 = parse_imm8(&opcode[16]);
+            if (w == '0' && width == 32) {
+                imm_dat8 = parse_imm8(&opcode[24]);
+                matches++;
+                printf("  %s Mem,Imm", instr_name);
+                printf("  %d", imm_dat8);
+            } else if (width == 40) {
+                imm_dat16 = parse_imm16(&opcode[24]);
+                matches++;
+                printf("  %s Mem,Imm", instr_name);
+                printf("  %d", imm_dat16);
+            }
+        } else if (width >= 32 && (memcmp(oo, "10", 2) == 0
+                || memcmp(oo, "00", 2) == 0)) {
+            imm16 = parse_imm16(&opcode[16]);
+            if (w == '0' && width == 40) {
+                imm_dat8 = parse_imm8(&opcode[32]);
+                matches++;
+                printf("  %s Mem,Imm", instr_name);
+                printf("  %d", imm_dat8);
+            } else if (width == 48) {
+                imm_dat16 = parse_imm16(&opcode[32]);
+                matches++;
+                printf("  %s Mem,Imm", instr_name);
+                printf("  %d", imm_dat16);
+            }
+        } else if (memcmp(oo, "11", 2) == 0) {
+            if (w == '0' && width == 24) {
+                imm_dat8 = parse_imm8(&opcode[16]);
+                matches++;
+                printf("  %s Reg,Imm", instr_name);
+                printf("  %d", imm_dat8);
+            } else if (width == 32) {
+                imm_dat16 = parse_imm16(&opcode[16]);
+                matches++;
+                printf("  %s Reg,Imm", instr_name);
+                printf("  %d", imm_dat16);
+            }
+        }
+        MOV_Mem_Imm(w - '0', str_to_int(oo, 2), str_to_int(mmm, 3), imm8, imm16,
+                imm_dat8, imm_dat16);
     }
     if (width >= 16 && memcmp(opcode, "10001100", 8) == 0) {
         memcpy(oo, &opcode[8], 2);
