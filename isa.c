@@ -1760,6 +1760,22 @@ void XOR_RMI(u8 s,u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16,s8 imm_dat8,s16 imm_dat16)
 }
 
 
+void CALL_Near(s8 low,s8 hi){
+	s16 offset = ((hi << 8) | 0x00ff) & low;
+	MEM[*REG(SP)]=*REG(IP);
+	*REG(SP)-=2;
+	*(REG(IP))=IP+offset;	
+}
+void CALL_Far(s8 lo_ip,s8 hi_ip,s8 lo_cs,s8 hi_cs){
+	s16 offset=	((hi_ip << 8) | 0x00ff) & lo_ip;
+	s16 new_cs=	((hi_cs << 8) | 0x00ff) & lo_cs;
+	MEM[*REG(SP)]=*REG(IP);
+	*REG(SP)-=2;
+	*REG(IP)=offset;
+	*(REG(CS))=new_cs;
+}
+
+
 
 
 

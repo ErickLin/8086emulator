@@ -230,7 +230,8 @@ void XOR_RM(u8,u8,u8,u8,u8,s8,s16);
 void XOR_Acc_Imm(u8,s8,s16);
 void XOR_RMI(u8,u8,u8,u8,s8,s16,s8,s16);
 
-void CALL();
+void CALL_Near(s8,s8);
+void CALL_Far(s8,s8,s8,s8);
 
 void JCC();
 
