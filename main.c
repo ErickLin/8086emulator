@@ -9,6 +9,16 @@ int main(int argc,char **argv){
 	init(500,500);
 	SET_LOW(REG(AX),255);
 	SET_HI(REG(AX),12);
+	//exec("DOSDEF.COM");
+	//exec("hello.com");
+	//exec("test.out");
+	//exec("add-sub.com");
+	//exec("calc-sum.com");
+	//exec("hex-bin.com");
+	//exec("hi-world.com");
+	//exec("pali.com");
+    //exec("viksiege.exe");
+    //exec("snake.com");
 	run();
 	//print_regs();
 }
