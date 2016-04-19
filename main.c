@@ -14,11 +14,11 @@ int main(int argc,char **argv){
 	//exec("test.out");
 	//exec("add-sub.com");
 	//exec("calc-sum.com");
-	//exec("hex-bin.com");
+	exec("hex-bin.com");
 	//exec("hi-world.com");
 	//exec("pali.com");
     //exec("viksiege.exe");
     //exec("snake.com");
-	run();
+	//run();
 	//print_regs();
 }
