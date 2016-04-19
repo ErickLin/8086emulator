@@ -1306,7 +1306,7 @@ short exec_instr(char* opcode, short width, FILE* fp) {
     if (width >= 24 && memcmp(opcode, "11000010", 8) == 0) {
         imm16 = parse_imm16(&opcode[8]);
         matches++;
-        RET_imm_Near(imm16);
+        RET_Imm_Near(imm16);
         printf("  RET imm NEAR");
     }
     if (memcmp(opcode, "11001011", 8) == 0) {
@@ -1317,7 +1317,7 @@ short exec_instr(char* opcode, short width, FILE* fp) {
     if (width >= 24 && memcmp(opcode, "11001010", 8) == 0) {
         imm16 = parse_imm16(&opcode[24]);
         matches++;
-        RET_imm_Far(imm16);
+        RET_Imm_Far(imm16);
         printf("  RET imm FAR");
     }
     if (memcmp(opcode, "10011110", 8) == 0) {
@@ -1437,14 +1437,15 @@ short exec_instr(char* opcode, short width, FILE* fp) {
     if (width == 24 && memcmp(opcode, "11101000", 8) == 0) {
         imm16 = parse_imm16(&opcode[8]);
         matches++;
-        //CALL(imm16);
+        CALL_Near(parse_imm8(opcode), parse_imm8(&opcode[8]));
         printf("  CALL Near");
     }
     if (width == 40 && memcmp(opcode, "10011010", 8) == 0) {
         imm16 = parse_imm16(&opcode[8]);
         short offset = parse_imm16(&opcode[24]);
         matches++;
-        //CALL(imm16);
+        CALL_Far(parse_imm8(opcode), parse_imm8(&opcode[8]), parse_imm8(&opcode[16])
+                , parse_imm8(&opcode[24]));
         printf("  CALL Far");
     }
     if (width >= 16 && memcmp(opcode, "0111", 4) == 0) {
@@ -1511,20 +1512,21 @@ short exec_instr(char* opcode, short width, FILE* fp) {
     if (width >= 16 && memcmp(opcode, "11101011", 8) == 0) {
         imm8 = parse_imm8(&opcode[8]);
         matches++;
-        //JMP();
+        JMP_Short(imm8);
         printf("  JMP Short");
     }
     if (width == 24 && memcmp(opcode, "11101001", 8) == 0) {
         imm16 = parse_imm16(&opcode[8]);
         matches++;
-        //JMP();
+        JMP_Near(parse_imm8(opcode), parse_imm8(&opcode[8]));
         printf("  JMP Near");
     }
     if (width == 40 && memcmp(opcode, "11101010", 8) == 0) {
         imm16 = parse_imm16(&opcode[8]);
         short offset = parse_imm16(&opcode[24]);
         matches++;
-        //JMP();
+        JMP_Far(parse_imm8(opcode), parse_imm8(&opcode[8]), parse_imm8(&opcode[16])
+                , parse_imm8(&opcode[24]));
         printf("  JMP Far");
     }
     if (width >= 16 && memcmp(opcode, "11111111", 8) == 0 && memcmp(opcode + 10, "100", 3) == 0) {
