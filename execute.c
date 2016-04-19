@@ -764,7 +764,7 @@ short exec_instr(char* opcode, short width, FILE* fp) {
             printf("  %s Reg,Reg", instr_name);
         }
         // Execute the instruction 
-        func_RM func = get_func_MR(opcode, width);
+        func_RM func = get_func_RM(opcode, width);
         func(opcode[6], w - '0', str_to_int(oo, 2), str_to_int(rrr, 3)
                 , str_to_int(mmm, 3), imm8, imm16);
     }
@@ -901,8 +901,6 @@ short exec_instr(char* opcode, short width, FILE* fp) {
             }
         }
         func_RMI func = get_func_RMI8(opcode, width);
-        func(opcode[6], w - '0', str_to_int(oo, 2), str_to_int(mmm, 3), imm8
-                , imm16, imm_dat8, imm_dat16);
     }
     instr_name = get_name_M(opcode, width);
     if (instr_name) {
@@ -1686,7 +1684,7 @@ short exec_instr(char* opcode, short width, FILE* fp) {
     return matches;
 }
 
-int exec(char* fname) {
+int exec_com(char* fname) {
 	FILE *fp = fopen(fname, "r");
 	if (fp == NULL) {
 		fprintf(stderr, "Can't open input file %s\n", fname);
