@@ -3,6 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef void (*func_M)(u8, u8, u8, s8, s16);
+typedef void (*func_M16)(u8, u8, s8, s16);
+typedef void (*func_RM)(u8, u8, u8, u8, u8, s8, s16);
+typedef void (*func_RMI)(u8, u8, u8, u8, s8, s16, s8, s16);
+typedef void (*func_Acc_Imm)(u8, s8, s16);
+
 char parse_imm8(char* imm8_str) {
     char imm8 = 0;
     for (int i = 0; i < 8; i++) {
@@ -24,6 +30,389 @@ short parse_imm16(char* imm) {
         imm16 += imm[i] - '0'; 
     }
     return imm16;
+}
+
+extern void AAA();
+extern void AAD();
+extern void AAM();
+extern void AAS();
+extern void ADC_RM(u8,u8,u8,u8,u8,s8,s16);
+extern void ADC_Acc_Imm(u8,s8,s16);
+extern void ADC_RMI(u8,u8,u8,u8,s8,s16,s8,s16);
+extern void ADD_RM(u8,u8,u8,u8,u8,s8,s16);
+extern void ADD_Acc_Imm(u8,s8,s16);
+extern void ADD_RMI(u8,u8,u8,u8,s8,s16,s8,s16);
+extern void AND_RM(u8,u8,u8,u8,u8,s8,s16);
+extern void AND_Acc_Imm(u8,s8,s16);
+extern void AND_RMI(u8,u8,u8,u8,s8,s16,s8,s16);
+extern void CBW();
+extern void CLC();
+extern void CLD();
+extern void CLI();
+extern void CMC();
+extern void CMP_RM(u8,u8,u8,u8,u8,s8,s16);
+extern void CMP_Acc_Imm(u8,s8,s16);
+extern void CMP_RMI(u8,u8,u8,u8,s8,s16,s8,s16);
+extern void CMPSB();
+extern void CMPSW();
+extern void CWD();
+extern void DAA();
+extern void DAS();
+extern void DEC(u8,u8,u8,s8,s16);
+extern void DIV(u8,u8,u8,s8,s16);
+extern void HLT();
+extern void IDIV(u8,u8,u8,s8,s16);
+extern void IMUL(u8,u8,u8,s8,s16);
+extern void INC(u8,u8,u8,s8,s16);
+extern void INT10();
+extern void INTO();
+extern void IRET();
+extern void LAHF();
+extern void LDS(u8,u8,u8,s8,s16);
+extern void LES(u8,u8,u8,s8,s16);
+extern void LEA(u8,u8,u8,s8,s16);
+extern void LODSB();
+extern void LODSW();
+extern void MOV_MOFS_Acc(u8,u8,s8,s16);
+extern void MOV_Reg_Imm(u8,u8,s8,s16);
+extern void MOV_Mem_Imm(u8,u8,u8,s8,s16,s8,s16);
+extern void MOV_Reg_Reg(u8,u8,u8);
+extern void MOV_Reg_Mem(u8,u8,u8,u8,u8,s8,s16);
+extern void MOV_Reg_Seg(u8,u8,u8,u8);
+extern void MOV_Mem_Seg(u8,u8,u8,u8,s8,s16);
+extern void MOVSB();
+extern void MOVSW();
+extern void MUL(u8,u8,u8,s8,s16);
+extern void NEG(u8,u8,u8,s8,s16);
+extern void NOT(u8,u8,u8,s8,s16);
+extern void OR_RM(u8,u8,u8,u8,u8,s8,s16);
+extern void OR_Acc_Imm(u8,s8,s16);
+extern void OR_RMI(u8,u8,u8,u8,s8,s16,s8,s16);
+extern void POP_Reg_W(u8);
+extern void POP_Mem_W(u8,u8,s8,s16);
+extern void POP_Seg(u8);
+extern void POPF();
+extern void PUSH_Reg_W(u8);
+extern void PUSH_Mem_W(u8,u8,s8,s16);
+extern void PUSH_Seg(u8);
+extern void PUSHF();
+extern void RCL();
+extern void RCR();
+extern void RET_NEAR();
+extern void RET_Imm_Near();
+extern void RET_FAR();
+extern void RET_Imm_FAR();
+extern void ROL();
+extern void ROR();
+extern void SAL();
+extern void SAR();
+extern void SHL();
+extern void SHR();
+extern void SBB();
+extern void SCASB();
+extern void SCASW();
+extern void STC();
+extern void STD();
+extern void STI();
+extern void STOSB();
+extern void STOSW();
+extern void SUB();
+extern void TEST();
+extern void WAIT();
+extern void XCHG();
+extern void XLAT();
+extern void XOR();
+extern void CALL();
+extern void JCC();
+extern void JCXZ();
+extern void JCXE();
+extern void JECXZ();
+extern void JECXE();
+extern void JMP();
+extern void LOOP();
+extern void LOOPZ();
+extern void LOOPE();
+extern void LOOPNZ();
+extern void LOCK();
+extern void REP();
+extern void REPE();
+extern void REPZ();
+extern void REPNE();
+extern void REPNZ();
+
+func_M get_func_M(char* opcode, short width) {
+    if (width < 16) {
+        return NULL;
+    }
+    if (memcmp(opcode, "1111111", 7) == 0 && memcmp(opcode + 10, "001", 3) == 0) {
+        return &DEC;
+    }
+    if (memcmp(opcode, "1111011", 7) == 0 && memcmp(opcode + 10, "110", 3) == 0) {
+        return &DIV;
+    }
+    if (memcmp(opcode, "1111011", 7) == 0 && memcmp(opcode + 10, "111", 3) == 0) {
+        return &IDIV;
+    }
+    if (memcmp(opcode, "1111011", 7) == 0 && memcmp(opcode + 10, "101", 3) == 0) {
+        return &IMUL;
+    }
+    if (memcmp(opcode, "1111111", 7) == 0 && memcmp(opcode + 10, "000", 3) == 0) {
+        return &INC;
+    }
+    if (memcmp(opcode, "1111011", 7) == 0 && memcmp(opcode + 10, "100", 3) == 0) {
+        return &MUL;
+    }
+    if (memcmp(opcode, "1111011", 7) == 0 && memcmp(opcode + 10, "011", 3) == 0) {
+        return &NEG;
+    }
+    return NULL;
+}
+
+func_M16 get_func_M16(char* opcode, short width) {
+    if (width < 16) {
+        return NULL;
+    }
+    if (memcmp(opcode, "10001111", 8) == 0 && memcmp(opcode + 10, "000", 3) == 0) {
+        return &POP_Mem_W;
+    }
+    if (memcmp(opcode, "11111111", 8) == 0 && memcmp(opcode + 10, "110", 3) == 0) {
+        return &PUSH_Mem_W;
+    }
+    return NULL;
+}
+
+/*
+func_M1 get_func_M1(char* opcode, short width) {
+    if (width < 16) {
+        return NULL;
+    }
+    if (memcmp(opcode, "1101000", 7) == 0 && memcmp(opcode + 10, "010", 3) == 0) {
+        return &RCL;
+    }
+    if (memcmp(opcode, "1101000", 7) == 0 && memcmp(opcode + 10, "011", 3) == 0) {
+        return &RCR;
+    }
+    if (memcmp(opcode, "1101000", 7) == 0 && memcmp(opcode + 10, "000", 3) == 0) {
+        return &ROL;
+    }
+    if (memcmp(opcode, "1101000", 7) == 0 && memcmp(opcode + 10, "001", 3) == 0) {
+        return &ROR;
+    }
+    if (memcmp(opcode, "1101000", 7) == 0 && memcmp(opcode + 10, "100", 3) == 0) {
+        return &SAL;
+    }
+    if (memcmp(opcode, "1101000", 7) == 0 && memcmp(opcode + 10, "111", 3) == 0) {
+        return &SAR;
+    }
+    if (memcmp(opcode, "1101000", 7) == 0 && memcmp(opcode + 10, "101", 3) == 0) {
+        return &SHR;
+    }
+    return NULL;
+}
+*/
+
+func_RM get_func_RM(char* opcode, short width) {
+    if (width < 16) {
+        return NULL;
+    }
+    if (memcmp(opcode, "0001001", 7) == 0) {
+        return &ADC_RM;
+    }
+    if (memcmp(opcode, "0000001", 7) == 0) {
+        return &ADD_RM;
+    }
+    if (memcmp(opcode, "0010001", 7) == 0) {
+        return &AND_RM;
+    }
+    if (memcmp(opcode, "0011101", 7) == 0) {
+        return &CMP_RM;
+    }
+    if (memcmp(opcode, "1000101", 7) == 0) {
+        return &MOV_Reg_Reg;
+    }
+    if (memcmp(opcode, "0000101", 7) == 0) {
+        return &OR_RM;
+    }
+    /*
+    if (memcmp(opcode, "0001101", 7) == 0) {
+        return &SBB_RM;
+    }
+    if (memcmp(opcode, "0010101", 7) == 0) {
+        return &SUB_RM;
+    }
+    if (memcmp(opcode, "1000010", 7) == 0) {
+        return &TEST_RM;
+    }
+    if (memcmp(opcode, "1000011", 7) == 0) {
+        return &XCHG_RM;
+    }
+    if (memcmp(opcode, "0011001", 7) == 0) {
+        return &XOR_RM;
+    }
+    */
+    return NULL;
+}
+
+func_RM get_func_MR(char* opcode, short width) {
+    if (width < 16) {
+        return NULL;
+    }
+    if (memcmp(opcode, "0001000", 7) == 0) {
+        return &ADC_RM;
+    }
+    if (memcmp(opcode, "0000000", 7) == 0) {
+        return &ADD_RM;
+    }
+    if (memcmp(opcode, "0010000", 7) == 0) {
+        return &AND_RM;
+    }
+    if (memcmp(opcode, "0011100", 7) == 0) {
+        return &CMP_RM;
+    }
+    /*
+    if (memcmp(opcode, "1000100", 7) == 0) {
+        return &MOV_Mem_Reg;
+    }
+    */
+    if (memcmp(opcode, "0000100", 7) == 0) {
+        return &OR_RM;
+    }
+    /*
+    if (memcmp(opcode, "0001100", 7) == 0) {
+        return &SBB_RM;
+    }
+    if (memcmp(opcode, "0010100", 7) == 0) {
+        return &SUB_RM;
+    }
+    */
+    /*
+    if (memcmp(opcode, "1000010", 7) == 0) {
+        return &TEST_RM;
+    }
+    if (memcmp(opcode, "1000011", 7) == 0) {
+        return &XCHG_RM";
+    }
+    */
+    /*
+    if (memcmp(opcode, "0011000", 7) == 0) {
+        return &XOR_RM;
+    }
+    */
+    return NULL;
+}
+
+func_Acc_Imm get_func_Acc_Imm(char* opcode, short width) {
+    if (width < 8) {
+        return NULL;
+    }
+    if (memcmp(opcode, "0001010", 7) == 0) {
+        return &ADC_Acc_Imm;
+    }
+    if (memcmp(opcode, "0000010", 7) == 0) {
+        return &ADD_Acc_Imm;
+    }
+    if (memcmp(opcode, "0010010", 7) == 0) {
+        return &AND_Acc_Imm;
+    }
+    if (memcmp(opcode, "0011110", 7) == 0) {
+        return &CMP_Acc_Imm;
+    }
+    if (memcmp(opcode, "0000110", 7) == 0) {
+        return &OR_Acc_Imm;
+    }
+    /*
+    if (memcmp(opcode, "0001110", 7) == 0) {
+        return &SBB_Acc_Imm;
+    }
+    if (memcmp(opcode, "0010110", 7) == 0) {
+        return &SUB_Acc_Imm;
+    }
+    if (memcmp(opcode, "1010100", 7) == 0) {
+        return &TEST_Acc_Imm;
+    }
+    if (memcmp(opcode, "0011010", 7) == 0) {
+        return &XOR_Acc_Imm;
+    }
+    */
+    return NULL;
+}
+
+func_RMI get_func_RMI8(char* opcode, short width) {
+    if (width < 16) {
+        return NULL;
+    }
+    if (memcmp(opcode, "1000001", 7) == 0 && memcmp(opcode + 10, "010", 3) == 0) {
+        return &ADC_RMI;
+    }
+    if (memcmp(opcode, "1000001", 7) == 0 && memcmp(opcode + 10, "000", 3) == 0) {
+        return &ADD_RMI;
+    }
+    if (memcmp(opcode, "1000001", 7) == 0 && memcmp(opcode + 10, "100", 3) == 0) {
+        return &AND_RMI;
+    }
+    if (memcmp(opcode, "1000001", 7) == 0 && memcmp(opcode + 10, "111", 3) == 0) {
+        return &CMP_RMI;
+    }
+    if (memcmp(opcode, "1100011", 7) == 0 && memcmp(opcode + 10, "000", 3) == 0) {
+        return &MOV_Mem_Imm;
+    }
+    if (memcmp(opcode, "1000001", 7) == 0 && memcmp(opcode + 10, "001", 3) == 0) {
+        return &OR_RMI;
+    }
+    /*
+    if (memcmp(opcode, "1000001", 7) == 0 && memcmp(opcode + 10, "011", 3) == 0) {
+        return &SBB_RMI;
+    }
+    if (memcmp(opcode, "1000001", 7) == 0 && memcmp(opcode + 10, "101", 3) == 0) {
+        return &SUB_RMI;
+    }
+    if (memcmp(opcode, "1000001", 7) == 0 && memcmp(opcode + 10, "110", 3) == 0) {
+        return &XOR_RMI;
+    }
+    */
+    return NULL;
+}
+
+func_RMI get_func_RMI(char* opcode, short width) {
+    if (width < 16) {
+        return NULL;
+    }
+    if (memcmp(opcode, "1000000", 7) == 0 && memcmp(opcode + 10, "010", 3) == 0) {
+        return &ADC_RMI;
+    }
+    if (memcmp(opcode, "1000000", 7) == 0 && memcmp(opcode + 10, "000", 3) == 0) {
+        return &ADD_RMI;
+    }
+    if (memcmp(opcode, "1000000", 7) == 0 && memcmp(opcode + 10, "100", 3) == 0) {
+        return &AND_RMI;
+    }
+    if (memcmp(opcode, "1000000", 7) == 0 && memcmp(opcode + 10, "111", 3) == 0) {
+        return &CMP_RMI;
+    }
+    if (memcmp(opcode, "1000000", 7) == 0 && memcmp(opcode + 10, "001", 3) == 0) {
+        return &OR_RMI;
+    }
+    /*
+    if (memcmp(opcode, "1000000", 7) == 0 && memcmp(opcode + 10, "011", 3) == 0) {
+        return &SBB_RMI;
+    }
+    if (memcmp(opcode, "1000000", 7) == 0 && memcmp(opcode + 10, "101", 3) == 0) {
+        return &SUB_RMI;
+    }
+    if (memcmp(opcode, "1111011", 7) == 0 && memcmp(opcode + 10, "000", 3) == 0) {
+        return &TEST_RMI;
+    }
+    if (memcmp(opcode, "1000000", 7) == 0 && memcmp(opcode + 10, "110", 3) == 0) {
+        return &XOR_RMI;
+    }
+    if (memcmp(opcode, "11111111", 8) == 0 && memcmp(opcode + 10, "011", 3) == 0) {
+        return &CALL_RMI;
+    }
+    if (memcmp(opcode, "11111111", 8) == 0 && memcmp(opcode + 10, "101", 3) == 0) {
+        return &JMP_RMI;
+    }
+    */
+    return NULL;
 }
 
 char* get_name_M(char* opcode, short width) {
@@ -617,10 +1006,10 @@ short exec_instr(char* opcode, short width, FILE* fp) {
             imm16 = parse_imm16(&opcode[16]);
             ret++;
             printf("  %s MemWord", instr_name);
-        } else if (memcmp(oo, "11", 2) == 0) {
+        }/* else if (memcmp(oo, "11", 2) == 0) {
             ret++;
             printf("  %s RegWord", instr_name);
-        }
+        }*/
     }
     instr_name = get_name_M1(opcode, width);
     if (instr_name) {
@@ -1129,8 +1518,9 @@ short exec_instr(char* opcode, short width, FILE* fp) {
         //CALL(imm16);
         printf("  CALL Near");
     }
-    if (width == 24 && memcmp(opcode, "10011010", 8) == 0) {
+    if (width == 40 && memcmp(opcode, "10011010", 8) == 0) {
         imm16 = parse_imm16(&opcode[8]);
+        short offset = parse_imm16(&opcode[24]);
         ret++;
         //CALL(imm16);
         printf("  CALL Far");
@@ -1208,8 +1598,9 @@ short exec_instr(char* opcode, short width, FILE* fp) {
         //JMP();
         printf("  JMP Near");
     }
-    if (width == 24 && memcmp(opcode, "11101010", 8) == 0) {
+    if (width == 40 && memcmp(opcode, "11101010", 8) == 0) {
         imm16 = parse_imm16(&opcode[8]);
+        short offset = parse_imm16(&opcode[24]);
         ret++;
         //JMP();
         printf("  JMP Far");
