@@ -1,5 +1,6 @@
 #include "graphics.h"
 
+
 u32 init(u16 w,u16 h){
 	SDL_Init(SDL_INIT_EVERYTHING);
 	WIDTH=w;
@@ -9,7 +10,7 @@ u32 init(u16 w,u16 h){
 }
 
 void run(){
-	SDL_Delay(2000);
+	SDL_Delay(10000);
 }
 
 u32 get_pixel(u16 x,u16 y){

@@ -1,6 +1,7 @@
 #ifndef ISA_H
 #define ISA_H
 #include "types.h"
+#include "graphics.h"
 
 #define MEMSIZE ( 0x1<< 20)
 #define SEGSIZE ( 0x1 << 16)
@@ -145,7 +146,7 @@ void IMUL(u8,u8,u8,s8,s16);
 
 void INC(u8,u8,u8,s8,s16);
 
-void INT(); //Eek
+void INT10();
 
 void INTO(); //Eek again
 
@@ -178,5 +179,78 @@ void NOT(u8,u8,u8,s8,s16);
 void OR_RM(u8,u8,u8,u8,u8,s8,s16);
 void OR_Acc_Imm(u8,s8,s16);
 void OR_RMI(u8,u8,u8,u8,s8,s16,s8,s16);
+
+void POP_Reg_W(u8);
+void POP_Mem_W(u8,u8,s8,s16);
+void POP_Seg(u8);
+void POPF();
+void PUSH_Reg_W(u8);
+void PUSH_Mem_W(u8,u8,s8,s16);
+void PUSH_Seg(u8);
+void PUSHF();
+
+void RCL();
+void RCR();
+void RET_NEAR();
+void RET_Imm_Near();
+void RET_FAR();
+void RET_Imm_FAR();
+
+void ROL();
+void ROR();
+
+void SAL();
+void SAR();
+
+void SHL();
+void SHR();
+void SBB();
+
+void SCASB();
+void SCASW();
+
+void STC();
+void STD();
+void STI();
+void STOSB();
+void STOSW();
+
+void SUB();
+
+void TEST();
+
+void WAIT();
+
+void XCHG();
+
+void XLAT();
+
+void XOR();
+
+void CALL();
+
+void JCC();
+
+void JCXZ();
+
+void JCXE();
+
+void JECXZ();
+void JECXE();
+
+void JMP();
+
+void LOOP();
+void LOOPZ();
+void LOOPE();
+void LOOPNZ();
+void LOCK();
+//LOCK:?
+void REP();
+void REPE();
+void REPZ();
+void REPNE();
+void REPNZ();
+
 
 #endif

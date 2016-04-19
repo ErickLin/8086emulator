@@ -1028,6 +1028,17 @@ void INC(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
 	FLAG_CHECK(res+1,0,1,1,1,1);
 }
 
+void INT10(){
+	u8 ah=GET_HI(*REG(AX));
+	switch(ah){
+		case 0:
+			break;
+		case 12:
+			set_pixel(*REG(CX),*REG(DX),GET_LOW(*REG(AX)));
+			break;
+	}
+}
+
 
 void IRET(){
 	s16 *sp=REG(SP);
@@ -1454,14 +1465,14 @@ void OR_RMI(u8 s,u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16,s8 imm_dat8,s16 imm_dat16){
 	u32 abs_addr;
 	u32 res;
 	switch(oo){
-		case 1:
+		case 0:
 			if(mmm == 6){ ds=REG(DS); abs_addr=ABS(*ds,imm16);}
 			else {abs_addr=MMM(mmm);}
 			break;
-		case 2:
+		case 1:
 			abs_addr=MMM(mmm)+imm8;
 			break;
-		case 3:
+		case 2:
 			abs_addr=MMM(mmm)+imm16;
 			break;
 
@@ -1503,6 +1514,83 @@ void OR_RMI(u8 s,u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16,s8 imm_dat8,s16 imm_dat16){
 	}
 	FLAG_CHECK(res,1,1,1,1,1);
 }
+
+void POP_Reg_W(u8 rrr){
+	s16* reg=REG(RRR(rrr));
+	*reg=MEM[ABS(*REG(SS),*REG(SP))];
+	(*REG(SP))+=2;
+}
+
+void POP_Mem_W(u8 oo,u8 mmm,s8 imm8,s16 imm16){
+	s16 *reg;
+	s16 *ds=REG(DS);
+	u32 abs_addr;
+	switch(oo){
+		case 0:
+			if(mmm == 6){ ds=REG(DS); abs_addr=ABS(*ds,imm16);}
+			else {abs_addr=MMM(mmm);}
+			break;
+		case 1:
+			abs_addr=MMM(mmm)+imm8;
+			break;
+		case 2:
+			abs_addr=MMM(mmm)+imm16;
+			break;
+	}
+	MEM[abs_addr]=MEM[ABS(*REG(SS),*REG(SP))];
+	(*REG(SP))+=2;
+}
+
+void POP_Seg(u8 sss){
+	s16* reg=REG(SSS(sss));
+	*reg=MEM[ABS(*REG(SS),*REG(SP))];
+	(*REG(SP))+=2;
+}
+
+void POPF(){
+	s16 *flags=REG(FLAGS);
+	*flags=MEM[ABS(*REG(SS),*REG(SP))];
+	(*REG(SP))+=2;
+}
+
+void PUSH_Reg_W(u8 rrr){
+	s16* reg=REG(RRR(rrr));
+	(*REG(SP))-=2;
+	MEM[ABS(*REG(SS),*REG(SP))]=*reg;
+}
+
+void PUSH_Mem_W(u8 oo,u8 mmm,s8 imm8,s16 imm16){
+	s16 *reg;
+	s16 *ds=REG(DS);
+	u32 abs_addr;
+	switch(oo){
+		case 0:
+			if(mmm == 6){ ds=REG(DS); abs_addr=ABS(*ds,imm16);}
+			else {abs_addr=MMM(mmm);}
+			break;
+		case 1:
+			abs_addr=MMM(mmm)+imm8;
+			break;
+		case 2:
+			abs_addr=MMM(mmm)+imm16;
+			break;
+	}
+	(*REG(SP))-=2;
+	MEM[ABS(*REG(SS),*REG(SP))]=MEM[abs_addr];
+}
+
+void PUSH_Seg(u8 sss){
+	s16* reg=REG(SSS(sss));
+	(*REG(SP))-=2;
+	MEM[ABS(*REG(SS),*REG(SP))]=*reg;
+}
+
+void PUSHF(){
+	s16* reg=REG(FLAGS);
+	(*REG(SP))-=2;
+	MEM[ABS(*REG(SS),*REG(SP))]=*reg;
+}
+
 
 
 
