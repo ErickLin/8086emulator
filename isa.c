@@ -38,6 +38,13 @@ u8 OVERFLOW_OR(u16 a,u16 b){
 	return 0;
 }
 
+u8 OVERFLOW_XOR(u16 a,u16 b){
+	if((SIGN(a) && SIGN(b)) || (!SIGN(a) && !SIGN(b))){
+		if(SIGN(a) && !(SIGN(a ^ b))){ return 1;}
+	}
+	return 0;
+}
+
 void FLAG_CHECK(u32 data,u8 c,u8 z,u8 s,u8 p,u8 a){
 	if(c) {(CARRY(data)) ? SET_FLAG(CF) : CLR_FLAG(CF);}
 	if(z){(!data) ? SET_FLAG(ZF) : CLR_FLAG(ZF);}
@@ -903,6 +910,8 @@ void DIV(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
 	}
 }
 
+void HLT(){ exit(0);}
+
 void IDIV(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
 	u32 temp;
 	s16 *reg;
@@ -1591,8 +1600,164 @@ void PUSHF(){
 	MEM[ABS(*REG(SS),*REG(SP))]=*reg;
 }
 
+void JMP_Short(s8 offset){
+	*(REG(IP))=IP+offset;
+}
+void JMP_Near(s8 low,s8 hi){
+	s16 offset = ((hi << 8) | 0x00ff) & low;
+	*(REG(IP))=IP+offset;	
+}
+void JMP_Far(s8 lo_ip,s8 hi_ip,s8 lo_cs,s8 hi_cs){
+	s16 offset=	((hi_ip << 8) | 0x00ff) & lo_ip;
+	s16 new_cs=	((hi_cs << 8) | 0x00ff) & lo_cs;
+	*REG(IP)=offset;
+	*(REG(CS))=new_cs;
+}
 
 
+void RET_Near(){
+	*REG(IP)=MEM[*REG(SP)];
+	*REG(SP)+=2;
+}
+
+void RET_Imm_Near(s16 imm){
+	*REG(IP)=MEM[*REG(SP)];
+	*REG(SP)+=imm;
+}
+
+void RET_Far(){
+	*REG(IP)=MEM[*REG(SP)];
+	*REG(SP)+=2;
+	*REG(CS)=MEM[*REG(SP)];
+	*REG(SP)+=2;
+}
+void RET_Imm_Far(s16 imm){
+	*REG(IP)=MEM[*REG(SP)];
+	*REG(SP)+=2;
+	*REG(CS)=MEM[*REG(SP)];
+	*REG(SP)+=imm;
+}
+
+void XOR_RM(u8 d,u8 w,u8 oo,u8 rrr,u8 mmm,s8 imm8,s16 imm16){
+	s16 *reg_a;
+	s16 *reg_b;
+	s16 *ds;
+	u32 abs_addr;
+	u32 res;
+	switch(oo){
+		case 0:
+			reg_a=REG(RRR(rrr));
+			if(mmm == 6){ ds=REG(DS); abs_addr=ABS(*ds,imm16);}
+			else {abs_addr=MMM(mmm);}
+			res=*reg_a ^ MEM[abs_addr];
+			if(d){ MEM[abs_addr] = res;}
+			else{ *reg_a=res;}
+			(OVERFLOW_XOR(*reg_a,MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			break;
+		case 1:
+			reg_a=REG(RRR(rrr));
+			abs_addr=MMM(mmm)+imm8;
+			res=*reg_a ^ MEM[abs_addr];
+			if(d){ MEM[abs_addr] = res;}
+			else{ *reg_a=res;}
+			(OVERFLOW_XOR(*reg_a,MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			break;
+		case 2:
+			reg_a=REG(RRR(rrr));
+			abs_addr=MMM(mmm)+imm16;
+			res=*reg_a ^ MEM[abs_addr];
+			if(d){ MEM[abs_addr] = res;}
+			else{ *reg_a=res;}
+			(OVERFLOW_XOR(*reg_a,MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			break;
+		case 3:
+			reg_a=REG(RRR(rrr));
+			reg_b=REG(RRR(mmm));
+			if(w){
+				if(d){ *reg_b=res;}
+				else{ *reg_a=res;}
+			}
+			else{
+				if(d){ SET_LOW(reg_b,res);}
+				else{ SET_LOW(reg_a,res);}
+			}
+			(OVERFLOW_XOR(*reg_a,*reg_b)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			break;
+	}
+	FLAG_CHECK(res,1,1,1,1,1);
+}
+
+void XOR_Acc_Imm(u8 w,s8 imm8,s16 imm16){
+	s16*reg=REG(AX);
+	u32 res;
+	if(w){
+		res=*reg ^ imm16 ;
+		(OVERFLOW_XOR(*reg,imm16)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+		*reg=res;
+	}
+	else{
+		res=*reg ^ imm8 ;
+		(OVERFLOW_XOR(*reg,imm8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+		SET_LOW(reg,res);
+	}
+	FLAG_CHECK(res,1,1,1,1,1);
+}
+
+void XOR_RMI(u8 s,u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16,s8 imm_dat8,s16 imm_dat16){
+	s16 * reg;
+	s16 * ds;
+	u32 abs_addr;
+	u32 res;
+	switch(oo){
+		case 1:
+			if(mmm == 6){ ds=REG(DS); abs_addr=ABS(*ds,imm16);}
+			else {abs_addr=MMM(mmm);}
+			break;
+		case 2:
+			abs_addr=MMM(mmm)+imm8;
+			break;
+		case 3:
+			abs_addr=MMM(mmm)+imm16;
+			break;
+
+	}
+	if(0<=oo && oo<=3){
+		if(s){
+			if(w){
+				res=MEM[abs_addr] ^ (s16)imm_dat8;
+				(OVERFLOW_XOR(MEM[abs_addr],(s16)imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			}
+			else{
+				res=MEM[abs_addr] ^ imm_dat8;
+				(OVERFLOW_XOR(MEM[abs_addr],imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			}
+		}
+		else{
+			res=MEM[abs_addr] ^ imm_dat16;
+			(OVERFLOW_XOR(MEM[abs_addr],imm_dat16)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+		}
+	}
+	else{
+		if(s){
+			if(w){
+				res=*reg ^ (s16)imm_dat8;
+				(OVERFLOW_XOR(*reg,(s16)imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+				*reg=res;
+			}
+			else{
+				res=*reg ^ imm_dat8;
+				(OVERFLOW_XOR(*reg,imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+				SET_LOW(reg,res);
+			}
+		}
+		else{
+			res=*reg ^ imm_dat16;
+			(OVERFLOW_XOR(*reg,imm_dat16)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+			*reg=res;
+		}
+	}
+	FLAG_CHECK(res,1,1,1,1,1);
+}
 
 
 

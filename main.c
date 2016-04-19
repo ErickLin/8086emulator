@@ -9,15 +9,6 @@ int main(int argc,char **argv){
 	init(500,500);
 	SET_LOW(REG(AX),255);
 	SET_HI(REG(AX),12);
-	for(int i=0;i<250;i++){
-		*REG(CX)=i;
-		*REG(DX)=i;
-		INT10();
-		SDL_Flip(screen);
-	}
-	//set_pixel(100,100,255);
-	
-
-	print_regs();
 	run();
+	//print_regs();
 }

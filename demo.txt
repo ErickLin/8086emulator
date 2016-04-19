@@ -1,0 +1,63 @@
+Machine code layout 8086:
+
+
+   6     1  1   2   3    3	  8/16	 8/16
+[OPCODE][d][w][oo][rrr][mmm] [addr] data
+
+OPCODE -identifies the actual instruction
+
+d - tells use the direction of data flow
+d=1 means src=rrr dest=mmm
+d=0 means src=mmm dest=rrr
+
+Ex:
+MOV AX,[0xf] 	d=0
+MOV [0xf],AX	d=1
+
+w - tells if is [addr] is 8 or 16 bit
+w=1 16-bit
+w=0 8-bit
+
+Ex:
+MOV AL, BL    w=1
+MOV AX, BX    w=0
+
+oo - denotes the "mode"
+oo=00 means no immediate in effective address computation
+oo=01 means we are doing an effective address computation with an 8-bit immediate
+oo=01 means we are doing an effective address computation with an 16-bit immediate
+oo=11 means reg-reg
+
+Ex:
+MOV AX,[BP]  oo=00
+MOV AX,[BP +8b]  oo=01
+MOV AX,[BP +16b] oo=10
+MOV AX,BX 	oo=11
+
+rrr - register selector
+
+rrr	 	W=0		W=1
+000		AL		AX
+001		CL		CX
+010		DL		DX
+011		BL		BX
+100		AH		SP
+101		CH		BP
+110		DH		SI
+111		BH		DI
+
+
+mmm - offset register and segment register for memory operations
+
+mmm
+000		DS:[BX+SI]
+001		DS:[BX+DI]
+010		SS:[BP+SI]
+011		SS:[BP+DI]
+100		DS:[SI]
+101		DS:[DI]
+110		DIRECT DS:[imm]
+111		DS:[BX]
+
+
+***if mmm==6 && oo=00 use direct immediate for memory addressing

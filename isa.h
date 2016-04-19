@@ -88,6 +88,7 @@ u8 OVERFLOW_SUM(u16,u16);
 u8 OVERFLOW_OR(u16,u16);
 
 
+
 //Flag checks and sets used a ton
 //Must check overflow yourself in function where you call this
 void FLAG_CHECK(u32,u8,u8,u8,u8,u8);
@@ -138,7 +139,7 @@ void DEC(u8,u8,u8,s8,s16);
 
 void DIV(u8,u8,u8,s8,s16);
 
-void HLT(); //TODO
+void HLT(); 
 
 void IDIV(u8,u8,u8,s8,s16);
 
@@ -191,10 +192,10 @@ void PUSHF();
 
 void RCL();
 void RCR();
-void RET_NEAR();
-void RET_Imm_Near();
-void RET_FAR();
-void RET_Imm_FAR();
+void RET_Near();
+void RET_Imm_Near(s16);
+void RET_Far();
+void RET_Imm_Far(s16);
 
 void ROL();
 void ROR();
@@ -225,7 +226,9 @@ void XCHG();
 
 void XLAT();
 
-void XOR();
+void XOR_RM(u8,u8,u8,u8,u8,s8,s16);
+void XOR_Acc_Imm(u8,s8,s16);
+void XOR_RMI(u8,u8,u8,u8,s8,s16,s8,s16);
 
 void CALL();
 
@@ -238,7 +241,9 @@ void JCXE();
 void JECXZ();
 void JECXE();
 
-void JMP();
+void JMP_Short(s8);
+void JMP_Near(s8,s8);
+void JMP_Far(s8,s8,s8,s8);
 
 void LOOP();
 void LOOPZ();
