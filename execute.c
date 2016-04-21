@@ -10,6 +10,26 @@ typedef void (*func_RMI)(u8, u8, u8, u8, s8, s16, s8, s16);
 typedef void (*func_Acc_Imm)(u8, s8, s16);
 typedef void (*func_L)(u8, u8, u8, s8, s16);
 
+s16 hex_char_to_s16(char word) {
+    short val;
+    if (word >= 'A' && word <= 'F') {
+        val = word - 'A' + 10;
+    } else if (word >= 'a' && word <= 'f') {
+        val = word - 'a' + 10;
+    } else {
+        val = word - '0';
+    }
+    return val;
+}
+
+char s16_to_hex_char(s16 val) {
+    if (val <= 9) {
+        return val + '0';
+    } else {
+        return val + 'A' - 10;
+    }
+}
+
 char str_to_int(char* imm_str, short width) {
     char imm = 0;
     for (int i = 0; i < width; i++) {
@@ -145,10 +165,10 @@ func_RM get_func_RM(char* opcode, short width) {
     if (memcmp(opcode, "1000011", 7) == 0) {
         return &XCHG_RM;
     }
+    */
     if (memcmp(opcode, "0011001", 7) == 0) {
         return &XOR_RM;
     }
-    */
     return NULL;
 }
 
@@ -192,11 +212,9 @@ func_RM get_func_MR(char* opcode, short width) {
         return &XCHG_RM";
     }
     */
-    /*
     if (memcmp(opcode, "0011000", 7) == 0) {
         return &XOR_RM;
     }
-    */
     return NULL;
 }
 
@@ -229,10 +247,10 @@ func_Acc_Imm get_func_Acc_Imm(char* opcode, short width) {
     if (memcmp(opcode, "1010100", 7) == 0) {
         return &TEST_Acc_Imm;
     }
+    */
     if (memcmp(opcode, "0011010", 7) == 0) {
         return &XOR_Acc_Imm;
     }
-    */
     return NULL;
 }
 
@@ -262,10 +280,10 @@ func_RMI get_func_RMI8(char* opcode, short width) {
     if (memcmp(opcode, "1000001", 7) == 0 && memcmp(opcode + 10, "101", 3) == 0) {
         return &SUB_RMI;
     }
+    */
     if (memcmp(opcode, "1000001", 7) == 0 && memcmp(opcode + 10, "110", 3) == 0) {
         return &XOR_RMI;
     }
-    */
     return NULL;
 }
 
@@ -298,9 +316,11 @@ func_RMI get_func_RMI(char* opcode, short width) {
     if (memcmp(opcode, "1111011", 7) == 0 && memcmp(opcode + 10, "000", 3) == 0) {
         return &TEST_RMI;
     }
+    */
     if (memcmp(opcode, "1000000", 7) == 0 && memcmp(opcode + 10, "110", 3) == 0) {
         return &XOR_RMI;
     }
+    /*
     if (memcmp(opcode, "11111111", 8) == 0 && memcmp(opcode + 10, "011", 3) == 0) {
         return &CALL_RMI;
     }
@@ -1469,12 +1489,6 @@ short exec_instr(char* opcode, short width, FILE* fp) {
         //XLAT();
         printf("  XLAT");
     }
-    if (memcmp(opcode, "0011010", 7) == 0) {
-        w = opcode[7];
-        matches++;
-        //XOR_Acc_Imm(w);
-        printf("  XOR");
-    }
     if (memcmp(opcode, "11110000", 8) == 0) {
         matches++;
         //LOCK();
@@ -1690,66 +1704,59 @@ short exec_instr(char* opcode, short width, FILE* fp) {
         printf("  mmm: %s", memcmp(oo, "11", 2) ? get_mmm_name(mmm) : get_rrr_name(mmm, reg32, w), mmm);
     }
     if (*rrr != '\0') {
-        printf("  rrr: %s", get_rrr_name(rrr, reg32, w), rrr);
+        printf("  rrr: %s", get_rrr_name(rrr, reg32, w));
     }
     if (*sss != '\0') {
-        printf("  sss: %s", get_sss_name(sss), sss);
+        printf("  sss: %s", get_sss_name(sss));
     }
     if (*cccc != '\0') {
-        printf("  cccc: %s", get_cccc_name(cccc), cccc);
+        printf("  cccc: %s", get_cccc_name(cccc));
     }
     printf("  %d %d", imm8, imm16);
     return matches;
 }
 
-int exec_com(char* fname) {
-	FILE *fp = fopen(fname, "r");
-	if (fp == NULL) {
-		fprintf(stderr, "Can't open input file %s\n", fname);
-		exit(1);
-	}
-    /*
-	int bytes_read;
-	size_t nbytes = 100;
-	char *buf = (char*) malloc(nbytes + 1);
-	bytes_read = getline(&buf, &nbytes, fp);
-    */
-    char opcode[49] = {0};
-    short pos = 0;
+int exec_prog(char* fname) {
+    FILE *fp = fopen(fname, "r");
+    if (fp == NULL) {
+        fprintf(stderr, "Can't open input file %s\n", fname);
+        exit(1);
+    }
+    int addr = 0;
     // The currently scanned 4-letter hexadecimal word
 	char hexword[5];
 	while (fscanf(fp, "%s", hexword) != EOF) {
         for (int i = 0; i < strlen(hexword); i++) {
-            printf("%c ", hexword[i]);
-            // Buffer holding next four binary digits, initialized to 0
-            short val;
-            if (hexword[i] >= 'A' && hexword[i] <= 'F') {
-                val = hexword[i] - 'A' + 10;
-            } else if (hexword[i] >= 'a' && hexword[i] <= 'f') {
-                val = hexword[i] - 'a' + 10;
-            } else {
-                val = hexword[i] - '0';
-            }
-            for (int j = 3; j >= 0; j--) {
-                if (val & (1 << j)) {
-                    opcode[pos] = '1';
-                } else {
-                    opcode[pos] = '0';
-                }
-                printf("%c", opcode[pos]);
-                pos++;
-                // Check if we have a complete instruction
-                if (pos > 0 && !(pos % 8)) {
-                    printf(" ");
-                    if (exec_instr(opcode, pos, fp) || pos == 48) {
-                        memset(opcode, 0, sizeof(opcode));
-                        pos = 0;
-                    }
-                }
-            }
-            printf("\n");
+            // Write the scanned word into main memory
+            MEM[addr++] = hex_char_to_s16(hexword[i]);
         }
 	}
 	fclose(fp);
+
+    // Buffer holding opcode being parsed, in string format
+    char opcode[49] = {0};
+    short pos = 0;
+    // Now parse the program that was just loaded into memory
+    for (int i = 0; i < addr; i++) {
+        printf("%c ", s16_to_hex_char(MEM[i]));
+        for (int j = 3; j >= 0; j--) {
+            if (MEM[i] & (1 << j)) {
+                opcode[pos] = '1';
+            } else {
+                opcode[pos] = '0';
+            }
+            printf("%c", opcode[pos]);
+            pos++;
+            // Check if we have a complete instruction
+            if (pos > 0 && !(pos % 8)) {
+                printf(" ");
+                if (exec_instr(opcode, pos, fp) || pos == 48) {
+                    memset(opcode, 0, sizeof(opcode));
+                    pos = 0;
+                }
+            }
+        }
+        printf("\n");
+    }
 	return 0;
 }

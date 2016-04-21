@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-c
+CFLAGS=-c -std=c99
 OBJS=execute.o graphics.o isa.o debug.o main.o
 
 all: $(OBJS)

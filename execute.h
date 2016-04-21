@@ -1,1 +1,1 @@
-int exec_com(char*);
+int exec_prog(char*);
