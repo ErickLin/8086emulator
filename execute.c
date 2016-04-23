@@ -185,13 +185,13 @@ func_RM get_func_RM(char* opcode, short width) {
     if (memcmp(opcode, "000010", 6) == 0) {
         return &OR_RM;
     }
-    /*
     if (memcmp(opcode, "000110", 6) == 0) {
         return &SBB_RM;
     }
     if (memcmp(opcode, "001010", 6) == 0) {
         return &SUB_RM;
     }
+    /*
     if (memcmp(opcode, "100001", 6) == 0) {
         return &TEST_RM;
     }
@@ -224,13 +224,13 @@ func_Acc_Imm get_func_Acc_Imm(char* opcode, short width) {
     if (memcmp(opcode, "0000110", 7) == 0) {
         return &OR_Acc_Imm;
     }
-    /*
     if (memcmp(opcode, "0001110", 7) == 0) {
         return &SBB_Acc_Imm;
     }
     if (memcmp(opcode, "0010110", 7) == 0) {
         return &SUB_Acc_Imm;
     }
+    /*
     if (memcmp(opcode, "1010100", 7) == 0) {
         return &TEST_Acc_Imm;
     }
@@ -260,14 +260,12 @@ func_RMI get_func_RMI8(char* opcode, short width) {
     if (memcmp(opcode, "1000001", 7) == 0 && memcmp(opcode + 10, "001", 3) == 0) {
         return &OR_RMI;
     }
-    /*
     if (memcmp(opcode, "1000001", 7) == 0 && memcmp(opcode + 10, "011", 3) == 0) {
         return &SBB_RMI;
     }
     if (memcmp(opcode, "1000001", 7) == 0 && memcmp(opcode + 10, "101", 3) == 0) {
         return &SUB_RMI;
     }
-    */
     if (memcmp(opcode, "1000001", 7) == 0 && memcmp(opcode + 10, "110", 3) == 0) {
         return &XOR_RMI;
     }
@@ -293,13 +291,13 @@ func_RMI get_func_RMI(char* opcode, short width) {
     if (memcmp(opcode, "1000000", 7) == 0 && memcmp(opcode + 10, "001", 3) == 0) {
         return &OR_RMI;
     }
-    /*
     if (memcmp(opcode, "1000000", 7) == 0 && memcmp(opcode + 10, "011", 3) == 0) {
         return &SBB_RMI;
     }
     if (memcmp(opcode, "1000000", 7) == 0 && memcmp(opcode + 10, "101", 3) == 0) {
         return &SUB_RMI;
     }
+    /*
     if (memcmp(opcode, "1111011", 7) == 0 && memcmp(opcode + 10, "000", 3) == 0) {
         return &TEST_RMI;
     }
@@ -307,14 +305,6 @@ func_RMI get_func_RMI(char* opcode, short width) {
     if (memcmp(opcode, "1000000", 7) == 0 && memcmp(opcode + 10, "110", 3) == 0) {
         return &XOR_RMI;
     }
-    /*
-    if (memcmp(opcode, "11111111", 8) == 0 && memcmp(opcode + 10, "011", 3) == 0) {
-        return &CALL_RMI;
-    }
-    if (memcmp(opcode, "11111111", 8) == 0 && memcmp(opcode + 10, "101", 3) == 0) {
-        return &JMP_RMI;
-    }
-    */
     return NULL;
 }
 
@@ -850,6 +840,7 @@ uintptr_t exec_instr(char* opcode, short width, FILE* fp, short* imm_buf) {
             func_RMI func = get_func_RMI8(opcode, width);
             if (func) {
                 instr = (uintptr_t) func;
+                // first argument is s bit, which indicates size of imm_dat
                 func(opcode[6] - '0', w - '0', str_to_int(oo, 2), str_to_int(mmm, 3), imm8
                         , imm16, imm_dat8, -1);
             }
@@ -1176,8 +1167,8 @@ uintptr_t exec_instr(char* opcode, short width, FILE* fp, short* imm_buf) {
     if (memcmp(opcode, "01001", 5) == 0) {
         memcpy(rrr, &opcode[5], 3);
         matches++;
-        //instr = (uintptr_t) &DEC_Reg_W;
-        //DEC_Reg_W(str_to_int(rrr));
+        instr = (uintptr_t) &DEC_Reg_W;
+        DEC_Reg_W(str_to_int(rrr, 3));
         sprintf(full_instr_name, "DEC RegWord");
     }
     if (memcmp(opcode, "11110100", 8) == 0) {
@@ -1195,8 +1186,8 @@ uintptr_t exec_instr(char* opcode, short width, FILE* fp, short* imm_buf) {
     if (memcmp(opcode, "01000", 5) == 0) {
         memcpy(rrr, &opcode[5], 3);
         matches++;
-        //instr = (uintptr_t) &INC_Reg_W;
-        //INC_Reg_W(str_to_int(rrr));
+        instr = (uintptr_t) &INC_Reg_W;
+        INC_Reg_W(str_to_int(rrr, 3));
         sprintf(full_instr_name, "INC RegWord");
     }
     if (memcmp(opcode, "11001100", 8) == 0) {
@@ -1579,20 +1570,20 @@ uintptr_t exec_instr(char* opcode, short width, FILE* fp, short* imm_buf) {
     }
     if (memcmp(opcode, "11111001", 8) == 0) {
         matches++;
-        //instr = (uintptr_t) &STC;
-        //STC();
+        instr = (uintptr_t) &STC;
+        STC();
         sprintf(full_instr_name, "STC");
     }
     if (memcmp(opcode, "11111101", 8) == 0) {
         matches++;
-        //instr = (uintptr_t) &STD;
-        //STD();
+        instr = (uintptr_t) &STD;
+        STD();
         sprintf(full_instr_name, "STD");
     }
     if (memcmp(opcode, "11111011", 8) == 0) {
         matches++;
-        //instr = (uintptr_t) &STI;
-        //STI();
+        instr = (uintptr_t) &STI;
+        STI();
         sprintf(full_instr_name, "STI");
     }
     if (memcmp(opcode, "10101010", 8) == 0) {
@@ -1727,8 +1718,8 @@ uintptr_t exec_instr(char* opcode, short width, FILE* fp, short* imm_buf) {
         imm_type = 1;
         imm8 = parse_imm8(&opcode[8]);
         matches++;
-        //instr = (uintptr_t) &JCXZ;
-        //JCXZ();
+        instr = (uintptr_t) &JCXZ;
+        JCXZ(imm8);
         sprintf(full_instr_name, "JCXZ/JCXE/JECXZ/JECXE");
     }
     if (width >= 16 && memcmp(opcode, "11101011", 8) == 0) {

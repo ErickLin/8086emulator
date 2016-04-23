@@ -136,6 +136,7 @@ void DAA();
 void DAS();
 
 void DEC(u8,u8,u8,s8,s16);
+void DEC_Reg_W(u8);
 
 void DIV(u8,u8,u8,s8,s16);
 
@@ -146,6 +147,7 @@ void IDIV(u8,u8,u8,s8,s16);
 void IMUL(u8,u8,u8,s8,s16);
 
 void INC(u8,u8,u8,s8,s16);
+void INC_Reg_W(u8);
 
 void INT(u8);
 
@@ -205,7 +207,10 @@ void SAR();
 
 void SHL();
 void SHR();
-void SBB();
+
+void SBB_RM(u8,u8,u8,u8,u8,s8,s16);
+void SBB_Acc_Imm(u8,s8,s16);
+void SBB_RMI(u8,u8,u8,u8,s8,s16,s8,s16);
 
 void SCASB();
 void SCASW();
@@ -216,7 +221,9 @@ void STI();
 void STOSB();
 void STOSW();
 
-void SUB();
+void SUB_RM(u8,u8,u8,u8,u8,s8,s16);
+void SUB_Acc_Imm(u8,s8,s16);
+void SUB_RMI(u8,u8,u8,u8,s8,s16,s8,s16);
 
 void TEST();
 
@@ -233,11 +240,7 @@ void XOR_RMI(u8,u8,u8,u8,s8,s16,s8,s16);
 void CALL_Near(s8,s8);
 void CALL_Far(s8,s8,s8,s8);
 
-void JCC();
-
-void JCXZ();
-
-void JCXE();
+void JCXZ(s8);
 
 void JECXZ();
 void JECXE();

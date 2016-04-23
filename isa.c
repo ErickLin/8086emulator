@@ -1,6 +1,8 @@
 #include "isa.h"
 #include <stdio.h>
 
+typedef s16 (*func_2op)(s16, s16);
+
 reg_file_t reg_file;
 
 const char *REG_STR[]={"AX\0","BX\0","CX\0","DX\0","SI\0","DI\0","BP\0","SP\0","CS\0","DS\0","ES\0","SS\0","IP\0","FL\0"};
@@ -189,6 +191,113 @@ u32 calc_abs_addr(u8 w, u8 oo, u8 mmm, s8 imm8, s16 imm16) {
     return abs_addr;
 }
 
+s16 adc(s16 left_op, s16 right_op) {
+    (OVERFLOW_SUM(left_op, right_op)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+    if (!GET_FLAG(OF)) {
+        (OVERFLOW_SUM(left_op + right_op, GET_FLAG(CF))) ? SET_FLAG(OF) : CLR_FLAG(OF);
+    }
+    return left_op + right_op + GET_FLAG(CF);
+}
+
+s16 add(s16 left_op, s16 right_op) {
+    (OVERFLOW_SUM(left_op, right_op)) ? SET_FLAG(OF) : CLR_FLAG(OF);
+    return left_op + right_op;
+}
+
+s16 and(s16 left_op, s16 right_op) {
+    return left_op & right_op;
+}
+
+s16 cmp(s16 left_op, s16 right_op) {
+    return left_op + TC(right_op);
+}
+
+s16 or(s16 left_op, s16 right_op) {
+    return left_op | right_op;
+}
+
+s16 sbb(s16 left_op, s16 right_op) {
+    return left_op - right_op - GET_FLAG(CF);
+}
+
+s16 sub(s16 left_op, s16 right_op) {
+    return left_op - right_op;
+}
+
+s16 xor(s16 left_op, s16 right_op) {
+    return left_op ^ right_op;
+}
+
+void func_RM(func_2op func, u8 d, u8 w, u8 oo, u8 rrr, u8 mmm, s8 imm8, s16 imm16) {
+    s16 *left_op_ptr, *right_op_addr;
+    s16 res;
+	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
+    if (oo >= 0 && oo <= 2) {
+        if (d) {
+            left_op_ptr = REG(RRR(rrr));
+            right_op_addr = &MEM[abs_addr];
+        } else {
+            left_op_ptr = &MEM[abs_addr];
+            right_op_addr = REG(RRR(rrr));
+        }
+        res = func(*left_op_ptr, *right_op_addr);
+        *left_op_ptr = res;
+    } else {
+        if (d) {
+            left_op_ptr = REG(RRR(rrr));
+            right_op_addr = REG(RRR(mmm));
+        } else { // should never happen
+            left_op_ptr = REG(RRR(mmm));
+            right_op_addr = REG(RRR(rrr));
+        }
+        res = func(*left_op_ptr, *right_op_addr);
+        if (w) {
+            *left_op_ptr = res;
+        } else {
+            SET_LOW(left_op_ptr, res);
+        }
+    }
+	FLAG_CHECK(res,1,1,1,1,1);
+}
+
+void func_Acc_Imm(func_2op func, u8 w, s8 imm8, s16 imm16) {
+	s16 *reg = REG(AX);
+    s16 res;
+	if (w) {
+        res = func(*reg, imm16);
+		*reg = res;
+	} else {
+		res = func(*reg, imm16);
+		SET_LOW(reg, res);
+	}
+	FLAG_CHECK(res,1,1,1,1,1);
+}
+
+void func_RMI(func_2op func, u8 s, u8 w, u8 oo, u8 mmm, s8 imm8, s16 imm16, s8 imm_dat8, s16 imm_dat16) {
+    s16 *left_op_ptr;
+    s16 res;
+    if (oo >= 0 && oo <= 2) {
+    	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
+        left_op_ptr = &MEM[abs_addr];
+    } else {
+	    s16 *reg = REG(RRR(mmm));
+        left_op_ptr = reg;
+    }
+
+    if(s){
+        if(w){
+            res = func(*left_op_ptr, (s16)imm_dat8);
+            *left_op_ptr = res;
+        } else {
+            res = func(*left_op_ptr, imm_dat8);
+            SET_LOW(left_op_ptr, res);
+        }
+    } else {
+        res = func(*left_op_ptr, imm_dat16);
+        *left_op_ptr = res;
+    }
+	FLAG_CHECK(res,1,1,1,1,1);
+}
 
 //ISA implementation
 void AAA(){
@@ -237,346 +346,39 @@ void AAS(){
 //RMI means involving registers, memory, or immediates
 
 void ADC_RM(u8 d,u8 w,u8 oo,u8 rrr,u8 mmm,s8 imm8,s16 imm16){
-	s16 *reg_a;
-	s16 *reg_b;
-	s16 *ds;
-	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
-	u32 res;
-	switch(oo){
-		case 0:
-			reg_a=REG(RRR(rrr));
-			res=*reg_a + MEM[abs_addr] + GET_FLAG(CF);
-			if(d){ MEM[abs_addr] = res;}
-			else{ *reg_a=res;}
-			(OVERFLOW_SUM(*reg_a,MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			if(!GET_FLAG(OF)){
-				(OVERFLOW_SUM(*reg_a+MEM[abs_addr],GET_FLAG(CF))) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-			break;
-		case 1:
-			reg_a=REG(RRR(rrr));
-			res=*reg_a + MEM[abs_addr] + GET_FLAG(CF);
-			if(d){ MEM[abs_addr] = res;}
-			else{ *reg_a=res;}
-			(OVERFLOW_SUM(*reg_a,MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			if(!GET_FLAG(OF)){
-				(OVERFLOW_SUM(*reg_a+MEM[abs_addr],GET_FLAG(CF))) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-			break;
-		case 2:
-			reg_a=REG(RRR(rrr));
-			res=*reg_a + MEM[abs_addr] + GET_FLAG(CF);
-			if(d){ MEM[abs_addr] = res;}
-			else{ *reg_a=res;}
-			(OVERFLOW_SUM(*reg_a,MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			if(!GET_FLAG(OF)){
-				(OVERFLOW_SUM(*reg_a+MEM[abs_addr],GET_FLAG(CF))) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-			break;
-			break;
-		case 3:
-			reg_a=REG(RRR(rrr));
-			reg_b=REG(RRR(mmm));
-			if(w){
-				if(d){ *reg_b=res;}
-				else{ *reg_a=res;}
-			}
-			else{
-				if(d){ SET_LOW(reg_b,res);}
-				else{ SET_LOW(reg_a,res);}
-			}
-			(OVERFLOW_SUM(*reg_a,*reg_b)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			if(!GET_FLAG(OF)){
-				(OVERFLOW_SUM(*reg_a+*reg_b,GET_FLAG(CF))) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-			break;
-	}
-	FLAG_CHECK(res,1,1,1,1,1);
+    func_RM(&adc, d, w, oo, rrr, mmm, imm8, imm16);
 }
 
-void ADC_Acc_Imm(u8 w,s8 imm8,s16 imm16){
-	s16*reg=REG(AX);
-	u32 res;
-	if(w){
-		res=*reg+imm16 + GET_FLAG(CF);
-		(OVERFLOW_SUM(*reg,imm16)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			if(!GET_FLAG(OF)){
-				(OVERFLOW_SUM(*reg+imm16,GET_FLAG(CF))) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-		*reg=res;
-	}
-	else{
-		res=*reg+imm8 + GET_FLAG(CF);
-		(OVERFLOW_SUM(*reg,imm8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			if(!GET_FLAG(OF)){
-				(OVERFLOW_SUM(*reg+imm8,GET_FLAG(CF))) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-		SET_LOW(reg,res);
-	}
-	FLAG_CHECK(res,1,1,1,1,1);
+void ADC_Acc_Imm(u8 w, s8 imm8, s16 imm16) {
+    func_Acc_Imm(&adc, w, imm8, imm16);
 }
 
 void ADC_RMI(u8 s,u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16,s8 imm_dat8,s16 imm_dat16){
-	s16 * reg;
-	s16 * ds;
-	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
-	u32 res;
-	if(0<=oo && oo<=3){
-		if(s){
-			if(w){
-				res=MEM[abs_addr] + (s16)imm_dat8 + GET_FLAG(CF);
-				(OVERFLOW_SUM(MEM[abs_addr],(s16)imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-				if(!GET_FLAG(OF)){
-					(OVERFLOW_SUM(MEM[abs_addr]+(s16)imm_dat8,GET_FLAG(CF))) ? SET_FLAG(OF) : CLR_FLAG(OF);
-				}
-			}
-			else{
-				res=MEM[abs_addr] + imm_dat8 + GET_FLAG(CF);
-				(OVERFLOW_SUM(MEM[abs_addr],imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-				if(!GET_FLAG(OF)){
-					(OVERFLOW_SUM(MEM[abs_addr]+imm_dat8,GET_FLAG(CF))) ? SET_FLAG(OF) : CLR_FLAG(OF);
-				}
-			}
-		}
-		else{
-			res=MEM[abs_addr] + imm_dat16 + GET_FLAG(CF);
-			(OVERFLOW_SUM(MEM[abs_addr],imm_dat16)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			if(!GET_FLAG(OF)){
-				(OVERFLOW_SUM(MEM[abs_addr]+imm_dat16,GET_FLAG(CF))) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-		}
-	}
-	else{
-		if(s){
-			if(w){
-				res=*reg + (s16)imm_dat8 + GET_FLAG(CF);
-				(OVERFLOW_SUM(*reg,(s16)imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-				if(!GET_FLAG(OF)){
-					(OVERFLOW_SUM(*reg+(s16)imm_dat8,GET_FLAG(CF))) ? SET_FLAG(OF) : CLR_FLAG(OF);
-				}
-				*reg=res;
-			}
-			else{
-				res=*reg + imm_dat8 + GET_FLAG(CF);
-				(OVERFLOW_SUM(*reg,imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-				if(!GET_FLAG(OF)){
-					(OVERFLOW_SUM(*reg+imm_dat8,GET_FLAG(CF))) ? SET_FLAG(OF) : CLR_FLAG(OF);
-				}
-				SET_LOW(reg,res);
-			}
-		}
-		else{
-			res=*reg + imm_dat16 + GET_FLAG(CF);
-			(OVERFLOW_SUM(*reg,imm_dat16)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			if(!GET_FLAG(OF)){
-				(OVERFLOW_SUM(*reg+imm_dat16,GET_FLAG(CF))) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-			*reg=res;
-		}
-	}
-	FLAG_CHECK(res,1,1,1,1,1);
+    func_RMI(&adc, s, w, oo, mmm, imm8, imm16, imm_dat8, imm_dat16);
 }
 
 void ADD_RM(u8 d,u8 w,u8 oo,u8 rrr,u8 mmm,s8 imm8,s16 imm16){
-	s16 *reg_a;
-	s16 *reg_b;
-	s16 *ds;
-	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
-	u32 res;
-	switch(oo){
-		case 0:
-			reg_a=REG(RRR(rrr));
-			res=*reg_a + MEM[abs_addr];
-			if(d){ MEM[abs_addr] = res;}
-			else{ *reg_a=res;}
-			(OVERFLOW_SUM(*reg_a,MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			break;
-		case 1:
-			reg_a=REG(RRR(rrr));
-			res=*reg_a + MEM[abs_addr];
-			if(d){ MEM[abs_addr] = res;}
-			else{ *reg_a=res;}
-			(OVERFLOW_SUM(*reg_a,MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			break;
-		case 2:
-			reg_a=REG(RRR(rrr));
-			res=*reg_a + MEM[abs_addr];
-			if(d){ MEM[abs_addr] = res;}
-			else{ *reg_a=res;}
-			(OVERFLOW_SUM(*reg_a,MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			break;
-			break;
-		case 3:
-			reg_a=REG(RRR(rrr));
-			reg_b=REG(RRR(mmm));
-			res=*reg_a + *reg_b;
-			if(w){
-				if(d){ *reg_b=res;}
-				else{ *reg_a=res;}
-			}
-			else{
-				if(d){ SET_LOW(reg_b,res);}
-				else{ SET_LOW(reg_a,res);}
-			}
-			(OVERFLOW_SUM(*reg_a,*reg_b)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			break;
-	}
-	FLAG_CHECK(res,1,1,1,1,1);
+    func_RM(&add, d, w, oo, rrr, mmm, imm8, imm16);
 }
 
 void ADD_Acc_Imm(u8 w,s8 imm8,s16 imm16){
-	s16*reg=REG(AX);
-	u32 res;
-	if(w){
-		res=*reg+imm16;
-		(OVERFLOW_SUM(*reg,imm16)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-		*reg=res;
-	}
-	else{
-		res=*reg+imm8;
-		(OVERFLOW_SUM(*reg,imm8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-		SET_LOW(reg,res);
-	}
-	FLAG_CHECK(res,1,1,1,1,1);
+    func_Acc_Imm(&add, w, imm8, imm16);
 }
 
 void ADD_RMI(u8 s,u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16,s8 imm_dat8,s16 imm_dat16){
-	s16 * reg;
-	s16 *ds;
-	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
-	u32 res;
-	if(0<=oo && oo<=3){
-		if(s){
-			if(w){
-				res=MEM[abs_addr] + (s16)imm_dat8;
-				(OVERFLOW_SUM(MEM[abs_addr],(s16)imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-			else{
-				res=MEM[abs_addr] + imm_dat8;
-				(OVERFLOW_SUM(MEM[abs_addr],imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-		}
-		else{
-			res=MEM[abs_addr] + imm_dat16;
-			(OVERFLOW_SUM(MEM[abs_addr],imm_dat16)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-		}
-	}
-	else{
-		if(s){
-			if(w){
-				res=*reg + (s16)imm_dat8;
-				(OVERFLOW_SUM(*reg,(s16)imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-				*reg=res;
-			}
-			else{
-				res=*reg + imm_dat8;
-				(OVERFLOW_SUM(*reg,imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-				SET_LOW(reg,res);
-			}
-		}
-		else{
-			res=*reg + imm_dat16;
-			(OVERFLOW_SUM(*reg,imm_dat16)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			*reg=res;
-		}
-	}
-	FLAG_CHECK(res,1,1,1,1,1);
+    func_RMI(&add, s, w, oo, mmm, imm8, imm16, imm_dat8, imm_dat16);
 }
 
 void AND_RM(u8 d,u8 w,u8 oo,u8 rrr,u8 mmm,s8 imm8,s16 imm16){
-	s16 *reg_a;
-	s16 *reg_b;
-	s16 *ds;
-	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
-	u32 res;
-	switch(oo){
-		case 0:
-			res=*reg_a & MEM[abs_addr];
-			if(d){ MEM[abs_addr] = res;}
-			else{ *reg_a=res;}
-			break;
-		case 1:
-			reg_a=REG(RRR(rrr));
-			res=*reg_a & MEM[abs_addr];
-			if(d){ MEM[abs_addr] = res;}
-			else{ *reg_a=res;}
-			break;
-		case 2:
-			reg_a=REG(RRR(rrr));
-			res=*reg_a & MEM[abs_addr];
-			if(d){ MEM[abs_addr] = res;}
-			else{ *reg_a=res;}
-			break;
-			break;
-		case 3:
-			reg_a=REG(RRR(rrr));
-			reg_b=REG(RRR(mmm));
-			res=*reg_a & *reg_b;
-			if(w){
-				if(d){ *reg_b=res;}
-				else{ *reg_a=res;}
-			}
-			else{
-				if(d){ SET_LOW(reg_b,res);}
-				else{ SET_LOW(reg_a,res);}
-			}
-			break;
-	}
-	CLR_FLAG(CF);
-	CLR_FLAG(OF);
-	FLAG_CHECK(res,0,1,1,1,0);
+    func_RM(&and, d, w, oo, rrr, mmm, imm8, imm16);
 }
 
 void AND_Acc_Imm(u8 w,s8 imm8,s16 imm16){
-	s16*reg=REG(AX);
-	u32 res;
-	if(w){
-		res=*reg & imm16;
-		*reg=res;
-	}
-	else{
-		res=*reg & imm8;
-		SET_LOW(reg,res);
-	}
-	CLR_FLAG(CF);
-	CLR_FLAG(OF);
-	FLAG_CHECK(res,0,1,1,1,0);
+    func_Acc_Imm(&add, w, imm8, imm16);
 }
 
 void AND_RMI(u8 s,u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16,s8 imm_dat8,s16 imm_dat16){
-	s16 * reg;
-	s16 * ds;
-	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
-	u32 res;
-	if(0<=oo && oo<=3){
-		if(s){
-			if(w){
-				res=MEM[abs_addr] & (s16)imm_dat8;
-			}
-			else{
-				res=MEM[abs_addr] & imm_dat8;
-			}
-		}
-		else{
-			res=MEM[abs_addr] & imm_dat16;
-		}
-	}
-	else{
-		if(s){
-			if(w){
-				res=*reg & (s16)imm_dat8;
-				*reg=res;
-			}
-			else{
-				res=*reg & imm_dat8;
-				SET_LOW(reg,res);
-			}
-		}
-		else{
-			res=*reg & imm_dat16;
-			*reg=res;
-		}
-	}
+    func_RMI(&and, s, w, oo, mmm, imm8, imm16, imm_dat8, imm_dat16);
 }
 
 
@@ -600,123 +402,15 @@ void CMC(){
 }
 
 void CMP_RM(u8 d,u8 w,u8 oo,u8 rrr,u8 mmm,s8 imm8,s16 imm16){
-	s16 *reg_a;
-	s16 *reg_b;
-	s16 *ds;
-	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
-	u32 res;
-	switch(oo){
-		case 0:
-			reg_a=REG(RRR(rrr));
-			if(d){ 
-				res=MEM[abs_addr] + TC(*reg_a);
-				MEM[abs_addr] = res;
-				(OVERFLOW_SUM(TC(*reg_a),MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-			else{ 
-				res=*reg_a + TC(MEM[abs_addr]);
-				*reg_a=res;
-				(OVERFLOW_SUM(*reg_a,TC(MEM[abs_addr]))) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-			break;
-		case 1:
-			reg_a=REG(RRR(rrr));
-			if(d){ 
-				res=MEM[abs_addr] + TC(*reg_a);
-				MEM[abs_addr] = res;
-				(OVERFLOW_SUM(TC(*reg_a),MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-			else{ 
-				res=*reg_a + TC(MEM[abs_addr]);
-				*reg_a=res;
-				(OVERFLOW_SUM(*reg_a,TC(MEM[abs_addr]))) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-			break;
-		case 2:
-			reg_a=REG(RRR(rrr));
-			if(d){ 
-				res=MEM[abs_addr] + TC(*reg_a);
-				MEM[abs_addr] = res;
-				(OVERFLOW_SUM(TC(*reg_a),MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-			else{ 
-				res=*reg_a + TC(MEM[abs_addr]);
-				*reg_a=res;
-				(OVERFLOW_SUM(*reg_a,TC(MEM[abs_addr]))) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-			break;
-		case 3:
-			reg_a=REG(RRR(rrr));
-			reg_b=REG(RRR(mmm));
-			if(d){ 
-				res=*reg_b + TC(*reg_a);
-				*reg_b = res;
-				(OVERFLOW_SUM(TC(*reg_a),*reg_b)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-			else{ 
-				res=*reg_a + TC(*reg_b);
-				*reg_a=res;
-				(OVERFLOW_SUM(*reg_a,TC(*reg_b))) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-			break;
-	}
-	FLAG_CHECK(res,1,1,1,1,1);
+    func_RM(&cmp, d, w, oo, rrr, mmm, imm8, imm16);
 }
 
 void CMP_Acc_Imm(u8 w,s8 imm8,s16 imm16){
-	s16*reg=REG(AX);
-	u32 res;
-	if(w){
-		res=*reg+TC(imm16);
-		(OVERFLOW_SUM(*reg,TC(imm16))) ? SET_FLAG(OF) : CLR_FLAG(OF);
-		*reg=res;
-	}
-	else{
-		res=*reg+TC(imm8);
-		(OVERFLOW_SUM(*reg,TC(imm8))) ? SET_FLAG(OF) : CLR_FLAG(OF);
-		SET_LOW(reg,res);
-	}
-	FLAG_CHECK(res,1,1,1,1,1);
+    func_Acc_Imm(&cmp, w, imm8, imm16);
 }
 
 void CMP_RMI(u8 s,u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16,s8 imm_dat8,s16 imm_dat16){
-	s16 *reg;
-	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
-	u32 res;
-	if(0<=oo && oo<=3){
-		if(s){
-			if(w){
-				res=MEM[abs_addr] + TC((s16)imm_dat8);
-				(OVERFLOW_SUM(MEM[abs_addr],TC((s16)imm_dat8))) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-			else{
-				res=MEM[abs_addr] + TC(imm_dat8); 
-				(OVERFLOW_SUM(MEM[abs_addr],TC(imm_dat8))) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-		}else{
-			res=MEM[abs_addr] + TC(imm_dat16);
-			(OVERFLOW_SUM(MEM[abs_addr],imm_dat16)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-		}
-	}else{
-		if(s){
-			if(w){
-				res=*reg + TC((s16)imm_dat8);
-				(OVERFLOW_SUM(*reg,TC((s16)imm_dat8))) ? SET_FLAG(OF) : CLR_FLAG(OF);
-				*reg=res;
-			}
-			else{
-				res=*reg + TC(imm_dat8);
-				(OVERFLOW_SUM(*reg,TC(imm_dat8))) ? SET_FLAG(OF) : CLR_FLAG(OF);
-				SET_LOW(reg,res);
-			}
-		}
-		else{
-			res=*reg + TC(imm_dat16);
-			(OVERFLOW_SUM(*reg,TC(imm_dat16))) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			*reg=res;
-		}
-	}
-	FLAG_CHECK(res,1,1,1,1,1);
+    func_RMI(&cmp, s, w, oo, mmm, imm8, imm16, imm_dat8, imm_dat16);
 }
 
 void CMPSB(){
@@ -786,7 +480,6 @@ void DAS(){
 
 void DEC(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
 	s16* reg;
-	s16 *ds;
 	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
 	u32 res;
 	switch(oo){
@@ -803,7 +496,7 @@ void DEC(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
 			MEM[abs_addr]=MEM[abs_addr]-1;
 			break;
 		case 3:
-			reg=REG(mmm);
+			reg=REG(RRR(mmm));
 			res=*reg;
 			*reg=*reg-1;
 			break;
@@ -812,15 +505,18 @@ void DEC(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
 	FLAG_CHECK(res+TC(1),0,1,1,1,1);
 }
 
+void DEC_Reg_W(u8 rrr) {
+	(*REG(RRR(rrr)))--;
+}
+
 void DIV(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
 	u32 temp;
 	s16 *reg;
 	s16 *ax=REG(AX);
-	s16 *ds;
 	s16 *dx=REG(DX);
 	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
     if (oo == 3) {
-        reg=REG(mmm);
+        reg=REG(RRR(mmm));
 	}
 	if(0<=oo && oo>=3){
 		if(w){
@@ -852,11 +548,10 @@ void IDIV(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
 	u32 temp;
 	s16 *reg;
 	s16 *ax=REG(AX);
-	s16 *ds;
 	s16 *dx=REG(DX);
 	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
     if (oo == 3) {
-        reg=REG(mmm);
+        reg=REG(RRR(mmm));
 	}
 	if(0<=oo && oo>=3){
 		if(w){
@@ -887,13 +582,12 @@ void IMUL(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
 	u32 res;
 	s16 *reg;
 	s16 *ax=REG(AX);
-	s16 *ds;
 	s16 *dx=REG(DX);
 	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
     if (oo == 3) {
-        reg=REG(mmm);
+        reg=REG(RRR(mmm));
 	}
-	if(0<=oo && oo>=3){
+    if(0<=oo && oo>=3){
 		if(w){
 			temp=*ax;
 			*ax=temp*MEM[abs_addr];
@@ -919,7 +613,6 @@ void IMUL(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
 
 void INC(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
 	s16* reg;
-	s16 *ds;
 	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
 	u32 res;
 	switch(oo){
@@ -936,13 +629,17 @@ void INC(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
 			MEM[abs_addr]=MEM[abs_addr]+1;
 			break;
 		case 3:
-			reg=REG(mmm);
+			reg=REG(RRR(mmm));
 			res=*reg;
 			*reg=*reg+1;
 			break;
 	}
 	(OVERFLOW_SUM(res,1)) ? SET_FLAG(OF) : CLR_FLAG(OF);
 	FLAG_CHECK(res+1,0,1,1,1,1);
+}
+
+void INC_Reg_W(u8 rrr) {
+	(*REG(RRR(rrr)))++;
 }
 
 void INT(u8 type) {
@@ -1037,7 +734,6 @@ void LDS(u8 oo, u8 rrr,u8 mmm,s8 imm8,s16 imm16){
 
 void LES(u8 oo, u8 rrr,u8 mmm,s8 imm8,s16 imm16){
 	s16 *reg=REG(RRR(rrr));
-	s16 *ds=REG(DS);
 	s16 *es=REG(ES);
 	u32 abs_addr = calc_abs_addr(0, oo, mmm, imm8, imm16);
 	*reg=MEM[abs_addr];
@@ -1046,8 +742,6 @@ void LES(u8 oo, u8 rrr,u8 mmm,s8 imm8,s16 imm16){
 
 void LEA(u8 oo, u8 rrr,u8 mmm,s8 imm8,s16 imm16){
 	s16 *reg=REG(RRR(rrr));
-	s16 *ds=REG(DS);
-	s16 *es=REG(ES);
 	u32 abs_addr = calc_abs_addr(1, oo, mmm, imm8, imm16);
 	*reg=MEM[abs_addr];
 }
@@ -1077,14 +771,14 @@ void LOOP(s8 imm8) {
 
 void LOOPZ(s8 imm8) {
     (*REG(CX))--;
-    if (*REG(CX) && *REG(ZF) == 1) {
+    if (*REG(CX) && GET_FLAG(ZF)) {
         JMP_Short(imm8);
     }
 }
 
 void LOOPNZ(s8 imm8) {
     (*REG(CX))--;
-    if (*REG(CX) && *REG(ZF) == 0) {
+    if (*REG(CX) && !GET_FLAG(ZF)) {
         JMP_Short(imm8);
     }
 }
@@ -1113,7 +807,6 @@ void MOV_Reg_Imm(u8 w,u8 rrr,s8 imm8,s16 imm16){
 
 void MOV_Mem_Imm(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16,s8 imm_dat8,s16 imm_dat16){
 	s16 *reg;
-	s16 *ds;
 	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
 	if(w){
 		MEM[abs_addr]=imm_dat16;
@@ -1133,7 +826,6 @@ void MOV_Reg_Reg(u8 w,u8 rrr,u8 mmm){
 void MOV_Reg_Mem(u8 d,u8 w,u8 oo,u8 rrr,u8 mmm,s8 imm8,s16 imm16){
 	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
 	s16 *reg=REG(RRR(rrr));
-	s16 *ds=REG(DS);
 	if(d){
 		MEM[abs_addr]=*reg;
 	}
@@ -1155,7 +847,6 @@ void MOV_Reg_Seg(u8 d,u8 w,u8 sss,u8 mmm){
 
 void MOV_Mem_Seg(u8 d,u8 oo,u8 sss,u8 mmm,s8 imm8,s16 imm16){
 	s16 *reg=REG(SSS(sss));
-	s16 *ds=REG(DS);
 	u32 abs_addr = calc_abs_addr(0, oo, mmm, imm8, imm16);
 	if(d){
 		MEM[abs_addr]=*reg;
@@ -1188,11 +879,10 @@ void MUL(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
 	u32 res;
 	s16 *reg;
 	s16 *ax=REG(AX);
-	s16 *ds;
 	s16 *dx=REG(DX);
 	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
     if (oo == 3) {
-        reg=REG(mmm);
+        reg=REG(RRR(mmm));
 	}
 	if(0<=oo && oo>=3){
 		if(w){
@@ -1221,11 +911,10 @@ void MUL(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
 void NEG(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
 	u32 temp;
 	u32 res;
-	s16 *reg=REG(MMM(mmm));
-	s16 *ds;
+	s16 *reg;
 	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
     if (oo == 3) {
-        reg=REG(mmm);
+        reg=REG(RRR(mmm));
 	}
 	temp=*reg;
 	if(0<=oo && oo>=3){
@@ -1249,11 +938,10 @@ void NEG(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
 void NOT(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
 	u32 temp;
 	u32 res;
-	s16 *reg=REG(MMM(mmm));
-	s16 *ds;
+	s16 *reg;
 	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
     if (oo == 3) {
-        reg=REG(mmm);
+        reg=REG(RRR(mmm));
 	}
 	temp=*reg;
 	if(0<=oo && oo>=3){
@@ -1275,109 +963,15 @@ void NOT(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
 }
 
 void OR_RM(u8 d,u8 w,u8 oo,u8 rrr,u8 mmm,s8 imm8,s16 imm16){
-	s16 *reg_a;
-	s16 *reg_b;
-	s16 *ds;
-	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
-	u32 res;
-	switch(oo){
-		case 0:
-			reg_a=REG(RRR(rrr));
-			res=*reg_a | MEM[abs_addr];
-			if(d){ MEM[abs_addr] = res;}
-			else{ *reg_a=res;}
-			(OVERFLOW_OR(*reg_a,MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			break;
-		case 1:
-			reg_a=REG(RRR(rrr));
-			res=*reg_a | MEM[abs_addr];
-			if(d){ MEM[abs_addr] = res;}
-			else{ *reg_a=res;}
-			(OVERFLOW_OR(*reg_a,MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			break;
-		case 2:
-			reg_a=REG(RRR(rrr));
-			res=*reg_a | MEM[abs_addr];
-			if(d){ MEM[abs_addr] = res;}
-			else{ *reg_a=res;}
-			(OVERFLOW_OR(*reg_a,MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			break;
-			break;
-		case 3:
-			reg_a=REG(RRR(rrr));
-			reg_b=REG(RRR(mmm));
-			res=*reg_a | *reg_b;
-			if(w){
-				if(d){ *reg_b=res;}
-				else{ *reg_a=res;}
-			}
-			else{
-				if(d){ SET_LOW(reg_b,res);}
-				else{ SET_LOW(reg_a,res);}
-			}
-			(OVERFLOW_OR(*reg_a,*reg_b)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			break;
-	}
-	FLAG_CHECK(res,1,1,1,1,1);
+    func_RM(&or, d, w, oo, rrr, mmm, imm8, imm16);
 }
 
 void OR_Acc_Imm(u8 w,s8 imm8,s16 imm16){
-	s16*reg=REG(AX);
-	u32 res;
-	if(w){
-		res=*reg | imm16;
-		(OVERFLOW_OR(*reg,imm16)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-		*reg=res;
-	}
-	else{
-		res=*reg | imm8;
-		(OVERFLOW_OR(*reg,imm8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-		SET_LOW(reg,res);
-	}
-	FLAG_CHECK(res,1,1,1,1,1);
+    func_Acc_Imm(&or, w, imm8, imm16);
 }
 
 void OR_RMI(u8 s,u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16,s8 imm_dat8,s16 imm_dat16){
-	s16 * reg;
-	s16 *ds;
-	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
-	u32 res;
-	if(0<=oo && oo<=3){
-		if(s){
-			if(w){
-				res=MEM[abs_addr] | (s16)imm_dat8;
-				(OVERFLOW_OR(MEM[abs_addr],(s16)imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-			else{
-				res=MEM[abs_addr] | imm_dat8;
-				(OVERFLOW_OR(MEM[abs_addr],imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-		}
-		else{
-			res=MEM[abs_addr] | imm_dat16;
-			(OVERFLOW_OR(MEM[abs_addr],imm_dat16)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-		}
-	}
-	else{
-		if(s){
-			if(w){
-				res=*reg | (s16)imm_dat8;
-				(OVERFLOW_OR(*reg,(s16)imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-				*reg=res;
-			}
-			else{
-				res=*reg | imm_dat8;
-				(OVERFLOW_OR(*reg,imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-				SET_LOW(reg,res);
-			}
-		}
-		else{
-			res=*reg | imm_dat16;
-			(OVERFLOW_OR(*reg,imm_dat16)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			*reg=res;
-		}
-	}
-	FLAG_CHECK(res,1,1,1,1,1);
+    func_RMI(&or, s, w, oo, mmm, imm8, imm16, imm_dat8, imm_dat16);
 }
 
 void POP_Reg_W(u8 rrr){
@@ -1388,7 +982,6 @@ void POP_Reg_W(u8 rrr){
 
 void POP_Mem_W(u8 oo,u8 mmm,s8 imm8,s16 imm16){
 	s16 *reg;
-	s16 *ds=REG(DS);
 	u32 abs_addr = calc_abs_addr(1, oo, mmm, imm8, imm16);
 	MEM[abs_addr]=MEM[ABS(*REG(SS),*REG(SP))];
 	(*REG(SP))+=2;
@@ -1414,7 +1007,6 @@ void PUSH_Reg_W(u8 rrr){
 
 void PUSH_Mem_W(u8 oo,u8 mmm,s8 imm8,s16 imm16){
 	s16 *reg;
-	s16 *ds=REG(DS);
 	u32 abs_addr = calc_abs_addr(1, oo, mmm, imm8, imm16);
 	(*REG(SP))-=2;
 	MEM[ABS(*REG(SS),*REG(SP))]=MEM[abs_addr];
@@ -1446,52 +1038,89 @@ void JMP_Far(s8 lo_ip,s8 hi_ip,s8 lo_cs,s8 hi_cs){
 	*(REG(CS))=new_cs;
 }
 void JO(s8 offset) {
-    JMP_Short(offset);
+    if (GET_FLAG(OF)) {
+        JMP_Short(offset);
+    }
 }
 void JNO(s8 offset) {
-    JMP_Short(offset);
+    if (!GET_FLAG(OF)) {
+        JMP_Short(offset);
+    }
 }
 void JC(s8 offset) {
-    JMP_Short(offset);
+    if (GET_FLAG(CF)) {
+        JMP_Short(offset);
+    }
 }
 void JNC(s8 offset) {
-    JMP_Short(offset);
+    if (GET_FLAG(CF)) {
+        JMP_Short(offset);
+    }
 }
 void JE(s8 offset) {
-    JMP_Short(offset);
+    if (GET_FLAG(ZF)) {
+        JMP_Short(offset);
+    }
 }
 void JNE(s8 offset) {
-    JMP_Short(offset);
+    if (!GET_FLAG(CF)) {
+        JMP_Short(offset);
+    }
 }
 void JBE(s8 offset) {
-    JMP_Short(offset);
+    if (GET_FLAG(CF) || GET_FLAG(CF)) {
+        JMP_Short(offset);
+    }
 }
 void JA(s8 offset) {
-    JMP_Short(offset);
+    if (!GET_FLAG(CF) && !GET_FLAG(CF)) {
+        JMP_Short(offset);
+    }
 }
 void JS(s8 offset) {
-    JMP_Short(offset);
+    if (GET_FLAG(SF)) {
+        JMP_Short(offset);
+    }
 }
 void JNS(s8 offset) {
-    JMP_Short(offset);
+    if (!GET_FLAG(SF)) {
+        JMP_Short(offset);
+    }
 }
 void JP(s8 offset) {
-    JMP_Short(offset);
+    if (GET_FLAG(PF)) {
+        JMP_Short(offset);
+    }
 }
 void JNP(s8 offset) {
-    JMP_Short(offset);
+    if (!GET_FLAG(PF)) {
+        JMP_Short(offset);
+    }
 }
 void JL(s8 offset) {
-    JMP_Short(offset);
+    if (GET_FLAG(SF) != GET_FLAG(OF)) {
+        JMP_Short(offset);
+    }
 }
 void JGE(s8 offset) {
-    JMP_Short(offset);
+    if (GET_FLAG(SF) == GET_FLAG(OF)) {
+        JMP_Short(offset);
+    }
 }
 void JLE(s8 offset) {
-    JMP_Short(offset);
+    if (GET_FLAG(SF) != GET_FLAG(OF) || GET_FLAG(ZF)) {
+        JMP_Short(offset);
+    }
 }
 void JG(s8 offset) {
-    JMP_Short(offset);
+    if (!GET_FLAG(ZF) && GET_FLAG(SF) == GET_FLAG(OF)) {
+        JMP_Short(offset);
+    }
+}
+void JCXZ(s8 offset) {
+    if (!*REG(CX)) {
+        JMP_Short(offset);
+    }
 }
 
 void NOP() {
@@ -1520,108 +1149,50 @@ void RET_Imm_Far(s16 imm){
 	*REG(SP)+=imm;
 }
 
+void SBB_RM(u8 d,u8 w,u8 oo,u8 rrr,u8 mmm,s8 imm8,s16 imm16){
+    func_RM(&sbb, d, w, oo, rrr, mmm, imm8, imm16);
+}
+
+void SBB_Acc_Imm(u8 w,s8 imm8,s16 imm16){
+    func_Acc_Imm(&sbb, w, imm8, imm16);
+}
+
+void SBB_RMI(u8 s,u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16,s8 imm_dat8,s16 imm_dat16){
+    func_RMI(&sbb, s, w, oo, mmm, imm8, imm16, imm_dat8, imm_dat16);
+}
+
+void STC() {
+    SET_FLAG(CF);
+}
+void STD() {
+    SET_FLAG(DF);
+}
+void STI() {
+    SET_FLAG(IF);
+}
+
+void SUB_RM(u8 d,u8 w,u8 oo,u8 rrr,u8 mmm,s8 imm8,s16 imm16){
+    func_RM(&sub, d, w, oo, rrr, mmm, imm8, imm16);
+}
+
+void SUB_Acc_Imm(u8 w,s8 imm8,s16 imm16){
+    func_Acc_Imm(&sub, w, imm8, imm16);
+}
+
+void SUB_RMI(u8 s,u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16,s8 imm_dat8,s16 imm_dat16){
+    func_RMI(&sub, s, w, oo, mmm, imm8, imm16, imm_dat8, imm_dat16);
+}
+
 void XOR_RM(u8 d,u8 w,u8 oo,u8 rrr,u8 mmm,s8 imm8,s16 imm16){
-	s16 *reg_a;
-	s16 *reg_b;
-	s16 *ds;
-	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
-	u32 res;
-	switch(oo){
-		case 0:
-			reg_a=REG(RRR(rrr));
-			res=*reg_a ^ MEM[abs_addr];
-			if(d){ MEM[abs_addr] = res;}
-			else{ *reg_a=res;}
-			(OVERFLOW_XOR(*reg_a,MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			break;
-		case 1:
-			reg_a=REG(RRR(rrr));
-			res=*reg_a ^ MEM[abs_addr];
-			if(d){ MEM[abs_addr] = res;}
-			else{ *reg_a=res;}
-			(OVERFLOW_XOR(*reg_a,MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			break;
-		case 2:
-			reg_a=REG(RRR(rrr));
-			res=*reg_a ^ MEM[abs_addr];
-			if(d){ MEM[abs_addr] = res;}
-			else{ *reg_a=res;}
-			(OVERFLOW_XOR(*reg_a,MEM[abs_addr])) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			break;
-		case 3:
-			reg_a=REG(RRR(rrr));
-			reg_b=REG(RRR(mmm));
-			if(w){
-				if(d){ *reg_b=res;}
-				else{ *reg_a=res;}
-			}
-			else{
-				if(d){ SET_LOW(reg_b,res);}
-				else{ SET_LOW(reg_a,res);}
-			}
-			(OVERFLOW_XOR(*reg_a,*reg_b)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			break;
-	}
-	FLAG_CHECK(res,1,1,1,1,1);
+    func_RM(&xor, d, w, oo, rrr, mmm, imm8, imm16);
 }
 
 void XOR_Acc_Imm(u8 w,s8 imm8,s16 imm16){
-	s16*reg=REG(AX);
-	u32 res;
-	if(w){
-		res=*reg ^ imm16 ;
-		(OVERFLOW_XOR(*reg,imm16)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-		*reg=res;
-	}
-	else{
-		res=*reg ^ imm8 ;
-		(OVERFLOW_XOR(*reg,imm8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-		SET_LOW(reg,res);
-	}
-	FLAG_CHECK(res,1,1,1,1,1);
+    func_Acc_Imm(&xor, w, imm8, imm16);
 }
 
 void XOR_RMI(u8 s,u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16,s8 imm_dat8,s16 imm_dat16){
-	s16 * reg;
-	s16 * ds;
-	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
-	u32 res;
-	if(0<=oo && oo<=3){
-		if(s){
-			if(w){
-				res=MEM[abs_addr] ^ (s16)imm_dat8;
-				(OVERFLOW_XOR(MEM[abs_addr],(s16)imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-			else{
-				res=MEM[abs_addr] ^ imm_dat8;
-				(OVERFLOW_XOR(MEM[abs_addr],imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			}
-		}
-		else{
-			res=MEM[abs_addr] ^ imm_dat16;
-			(OVERFLOW_XOR(MEM[abs_addr],imm_dat16)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-		}
-	}
-	else{
-		if(s){
-			if(w){
-				res=*reg ^ (s16)imm_dat8;
-				(OVERFLOW_XOR(*reg,(s16)imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-				*reg=res;
-			}
-			else{
-				res=*reg ^ imm_dat8;
-				(OVERFLOW_XOR(*reg,imm_dat8)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-				SET_LOW(reg,res);
-			}
-		}
-		else{
-			res=*reg ^ imm_dat16;
-			(OVERFLOW_XOR(*reg,imm_dat16)) ? SET_FLAG(OF) : CLR_FLAG(OF);
-			*reg=res;
-		}
-	}
-	FLAG_CHECK(res,1,1,1,1,1);
+    func_RMI(&xor, s, w, oo, mmm, imm8, imm16, imm_dat8, imm_dat16);
 }
 
 
@@ -1639,8 +1210,3 @@ void CALL_Far(s8 lo_ip,s8 hi_ip,s8 lo_cs,s8 hi_cs){
 	*REG(IP)=offset;
 	*(REG(CS))=new_cs;
 }
-
-
-
-
-
