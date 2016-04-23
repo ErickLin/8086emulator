@@ -1037,15 +1037,67 @@ void INC(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16){
 	FLAG_CHECK(res+1,0,1,1,1,1);
 }
 
-void INT10(){
-	u8 ah=GET_HI(*REG(AX));
-	switch(ah){
-		case 0:
-			break;
-		case 12:
-			set_pixel(*REG(CX),*REG(DX),GET_LOW(*REG(AX)));
-			break;
-	}
+void INT(u8 type) {
+    u8 ah = GET_HI(*REG(AX));
+    // video interrupt
+    if (type == 0x10) {
+        switch (ah) {
+            // set video mode
+            case 0x00:
+                break;
+            // write graphics pixel
+            case 0x0c:
+                set_pixel(*REG(CX),*REG(DX),GET_LOW(*REG(AX)));
+                break;
+        }
+    // keyboard interrupt
+    } else if (type == 0x16) {
+        switch (ah) {
+            // read keyboard input
+            case 0x00:
+                break;
+            // return keyboard status
+            case 0x01:
+                break;
+            case 0x02:
+                break;
+            case 0x03:
+                break;
+            case 0x05:
+                break;
+            case 0x10:
+                break;
+            case 0x11:
+                break;
+            case 0x12:
+                break;
+        }
+    // DOS interrupt
+    } else if (type == 0x21) {
+        switch (ah) {
+            // read character from stdin
+            case 0x01:
+                break;
+            // write character to stdout
+            case 0x02:
+                break;
+            // console input/output
+            case 0x06:
+                break;
+            case 0x07:
+                break;
+            case 0x08:
+                break;
+            case 0x09:
+                break;
+            case 0x0a:
+                break;
+            case 0x0b:
+                break;
+            case 0x0c:
+                break;
+        }
+    }
 }
 
 

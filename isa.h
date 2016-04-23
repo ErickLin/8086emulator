@@ -147,7 +147,7 @@ void IMUL(u8,u8,u8,s8,s16);
 
 void INC(u8,u8,u8,s8,s16);
 
-void INT10();
+void INT(u8);
 
 void INTO(); //Eek again
 

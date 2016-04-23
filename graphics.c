@@ -13,7 +13,7 @@ u32 init(u16 w,u16 h){
 	SDL_Flip(screen);
 }
 
-void run(){
+void run_test(){
 	done=0;
 	while(!done){
 		while(SDL_PollEvent(&event)){
@@ -79,6 +79,6 @@ void render(){
 		//
 		//get_pixel(0,0);
 		set_pixel(*REG(CX),*REG(DX),255);
-		//INT10();
+		//INT(0x10);
 		SDL_Flip(screen);
 }
