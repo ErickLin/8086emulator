@@ -262,10 +262,9 @@ void JMP_Short(s8);
 void JMP_Near(s8,s8);
 void JMP_Far(s8,s8,s8,s8);
 
-void LOOP();
-void LOOPZ();
-void LOOPE();
-void LOOPNZ();
+void LOOP(s8);
+void LOOPZ(s8);
+void LOOPNZ(s8);
 void LOCK();
 
 void NOP();

@@ -1788,24 +1788,24 @@ uintptr_t exec_instr(char* opcode, short width, FILE* fp, short* imm_buf) {
         imm_type = 1;
         imm8 = parse_imm8(&opcode[8]);
         matches++;
-        //instr = (uintptr_t) &LOOP;
-        //LOOP();
+        instr = (uintptr_t) &LOOP;
+        LOOP(imm8);
         sprintf(full_instr_name, "LOOP");
     }
     if (width >= 16 && memcmp(opcode, "11100001", 8) == 0) {
         imm_type = 1;
         imm8 = parse_imm8(&opcode[8]);
         matches++;
-        //instr = (uintptr_t) &LOOPZ;
-        //LOOPZ();
+        instr = (uintptr_t) &LOOPZ;
+        LOOPZ(imm8);
         sprintf(full_instr_name, "LOOPZ/LOOPE");
     }
     if (width >= 16 && memcmp(opcode, "11100000", 8) == 0) {
         imm_type = 1;
         imm8 = parse_imm8(&opcode[8]);
         matches++;
-        //instr = (uintptr_t) &LOOPNZ;
-        //LOOPNZ();
+        instr = (uintptr_t) &LOOPNZ;
+        LOOPNZ(imm8);
         sprintf(full_instr_name, "LOOPNZ/LOOPNE");
     }
     if (width >= 16 && memcmp(opcode, "1101111011010101", 16) == 0) {
