@@ -242,6 +242,22 @@ void JCXE();
 void JECXZ();
 void JECXE();
 
+void JO(s8);
+void JNO(s8);
+void JC(s8);
+void JNC(s8);
+void JE(s8);
+void JNE(s8);
+void JBE(s8);
+void JA(s8);
+void JS(s8);
+void JNS(s8);
+void JP(s8);
+void JNP(s8);
+void JL(s8);
+void JGE(s8);
+void JLE(s8);
+void JG(s8);
 void JMP_Short(s8);
 void JMP_Near(s8,s8);
 void JMP_Far(s8,s8,s8,s8);
@@ -251,6 +267,9 @@ void LOOPZ();
 void LOOPE();
 void LOOPNZ();
 void LOCK();
+
+void NOP();
+
 //LOCK:?
 void REP();
 void REPE();

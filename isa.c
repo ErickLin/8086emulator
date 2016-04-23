@@ -1613,7 +1613,57 @@ void JMP_Far(s8 lo_ip,s8 hi_ip,s8 lo_cs,s8 hi_cs){
 	*REG(IP)=offset;
 	*(REG(CS))=new_cs;
 }
+void JO(s8 offset) {
+    JMP_Short(offset);
+}
+void JNO(s8 offset) {
+    JMP_Short(offset);
+}
+void JC(s8 offset) {
+    JMP_Short(offset);
+}
+void JNC(s8 offset) {
+    JMP_Short(offset);
+}
+void JE(s8 offset) {
+    JMP_Short(offset);
+}
+void JNE(s8 offset) {
+    JMP_Short(offset);
+}
+void JBE(s8 offset) {
+    JMP_Short(offset);
+}
+void JA(s8 offset) {
+    JMP_Short(offset);
+}
+void JS(s8 offset) {
+    JMP_Short(offset);
+}
+void JNS(s8 offset) {
+    JMP_Short(offset);
+}
+void JP(s8 offset) {
+    JMP_Short(offset);
+}
+void JNP(s8 offset) {
+    JMP_Short(offset);
+}
+void JL(s8 offset) {
+    JMP_Short(offset);
+}
+void JGE(s8 offset) {
+    JMP_Short(offset);
+}
+void JLE(s8 offset) {
+    JMP_Short(offset);
+}
+void JG(s8 offset) {
+    JMP_Short(offset);
+}
 
+void NOP() {
+}
 
 void RET_Near(){
 	*REG(IP)=MEM[*REG(SP)];
