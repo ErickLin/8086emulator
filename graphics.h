@@ -18,7 +18,7 @@ u32 ypos;
 u8 dir;
 
 u32 init(u16,u16);
-void run_test(); //TODO?
+void run_sdl_test(); //TODO?
 u32 get_pixel(u16,u16);
 void set_pixel(u16,u16,u32);
 void update();

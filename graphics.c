@@ -13,7 +13,7 @@ u32 init(u16 w,u16 h){
 	SDL_Flip(screen);
 }
 
-void run_test(){
+void run_sdl_test(){
 	done=0;
 	while(!done){
 		while(SDL_PollEvent(&event)){

@@ -2,6 +2,7 @@
 #define ISA_H
 #include "types.h"
 #include "graphics.h"
+#include "debug.h"
 
 #define MEMSIZE ( 0x1<< 20)
 #define SEGSIZE ( 0x1 << 16)
@@ -202,11 +203,9 @@ void RET_Imm_Far(s16);
 void ROL();
 void ROR();
 
-void SAL();
-void SAR();
-
-void SHL();
-void SHR();
+void SAL(u8,u8,u8,u8,s8,s16);
+void SAR(u8,u8,u8,u8,s8,s16);
+void SHR(u8,u8,u8,u8,s8,s16);
 
 void SBB_RM(u8,u8,u8,u8,u8,s8,s16);
 void SBB_Acc_Imm(u8,s8,s16);
@@ -225,7 +224,9 @@ void SUB_RM(u8,u8,u8,u8,u8,s8,s16);
 void SUB_Acc_Imm(u8,s8,s16);
 void SUB_RMI(u8,u8,u8,u8,s8,s16,s8,s16);
 
-void TEST();
+void TEST_RM(u8,u8,u8,u8,u8,s8,s16);
+void TEST_Acc_Imm(u8,s8,s16);
+void TEST_RMI(u8,u8,u8,u8,s8,s16,s8,s16);
 
 void WAIT();
 
@@ -237,7 +238,7 @@ void XOR_RM(u8,u8,u8,u8,u8,s8,s16);
 void XOR_Acc_Imm(u8,s8,s16);
 void XOR_RMI(u8,u8,u8,u8,s8,s16,s8,s16);
 
-void CALL_Near(s8,s8);
+void CALL_Near(s16);
 void CALL_Far(s8,s8,s8,s8);
 
 void JCXZ(s8);
@@ -262,7 +263,7 @@ void JGE(s8);
 void JLE(s8);
 void JG(s8);
 void JMP_Short(s8);
-void JMP_Near(s8,s8);
+void JMP_Near(s16);
 void JMP_Far(s8,s8,s8,s8);
 
 void LOOP(s8);
@@ -279,5 +280,7 @@ void REPZ();
 void REPNE();
 void REPNZ();
 
+void XCHG_RM(u8,u8,u8,u8,u8,s8,s16);
+void XCHG_Acc_W_Reg_W(u8);
 
 #endif

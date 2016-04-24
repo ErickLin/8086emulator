@@ -114,7 +114,7 @@ u32 EA(u8 mmm){
 	}	
 }
 
-u8 RRR(u8 rrr){
+u8 RRR(u8 rrr) {
 	switch(rrr){
 		case 0:
 			return AX;
@@ -128,6 +128,11 @@ u8 RRR(u8 rrr){
 		case 3:
 			return BX;
 			break;
+        /*
+		case 4:
+			return SP;
+			break;
+        */
 		case 5:
 			return BP;
 			break;
@@ -209,7 +214,7 @@ s16 and(s16 left_op, s16 right_op) {
 }
 
 s16 cmp(s16 left_op, s16 right_op) {
-    return left_op + TC(right_op);
+    return left_op - right_op;
 }
 
 s16 or(s16 left_op, s16 right_op) {
@@ -228,36 +233,84 @@ s16 xor(s16 left_op, s16 right_op) {
     return left_op ^ right_op;
 }
 
+s16 test(s16 left_op, s16 right_op) {
+    return left_op & right_op;
+}
+
 void func_RM(func_2op func, u8 d, u8 w, u8 oo, u8 rrr, u8 mmm, s8 imm8, s16 imm16) {
-    s16 *left_op_ptr, *right_op_addr;
-    s16 res;
-	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
-    if (oo >= 0 && oo <= 2) {
-        if (d) {
-            left_op_ptr = REG(RRR(rrr));
-            right_op_addr = &MEM[abs_addr];
+    if (w) {
+        s16 *left_op_ptr, *right_op_ptr;
+        s16 res;
+        u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
+        if (oo >= 0 && oo <= 2) {
+            if (d) {
+                left_op_ptr = REG(RRR(rrr));
+                right_op_ptr = &MEM[abs_addr];
+            } else {
+                left_op_ptr = &MEM[abs_addr];
+                right_op_ptr = REG(RRR(rrr));
+            }
+            res = func(*left_op_ptr, *right_op_ptr);
+            if (func != &cmp && func != &test) {
+                *left_op_ptr = res;
+            }
         } else {
-            left_op_ptr = &MEM[abs_addr];
-            right_op_addr = REG(RRR(rrr));
+            if (d) {
+                left_op_ptr = REG(RRR(rrr));
+                right_op_ptr = REG(RRR(mmm));
+            } else { // should never happen
+                left_op_ptr = REG(RRR(mmm));
+                right_op_ptr = REG(RRR(rrr));
+            }
+            res = func(*left_op_ptr, *right_op_ptr);
+            if (func != &cmp && func != &test) {
+                *left_op_ptr = res;
+            }
         }
-        res = func(*left_op_ptr, *right_op_addr);
-        *left_op_ptr = res;
+        FLAG_CHECK(res,1,1,1,1,1);
     } else {
-        if (d) {
-            left_op_ptr = REG(RRR(rrr));
-            right_op_addr = REG(RRR(mmm));
-        } else { // should never happen
-            left_op_ptr = REG(RRR(mmm));
-            right_op_addr = REG(RRR(rrr));
-        }
-        res = func(*left_op_ptr, *right_op_addr);
-        if (w) {
-            *left_op_ptr = res;
+        s8 *left_op_ptr, *right_op_ptr;
+        s8 res;
+        u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
+        if (oo >= 0 && oo <= 2) {
+            if (d) {
+                left_op_ptr = (s8*) REG(RRR(rrr % 4));
+                if (rrr >= 4) {
+                    left_op_ptr++;
+                }
+                right_op_ptr = (s8*) &MEM[abs_addr];
+            } else {
+                left_op_ptr = (s8*) &MEM[abs_addr];
+                right_op_ptr = (s8*) REG(RRR(rrr % 4));
+                if (rrr >= 4) {
+                    right_op_ptr++;
+                }
+            }
+            res = func(*left_op_ptr, *right_op_ptr);
+            if (func != &cmp && func != &test) {
+                *left_op_ptr = res;
+            }
         } else {
-            SET_LOW(left_op_ptr, res);
+            if (d) {
+                left_op_ptr = (s8*) REG(RRR(rrr % 4));
+                if (rrr >= 4) {
+                    left_op_ptr++;
+                }
+                right_op_ptr = (s8*) REG(RRR(mmm));
+            } else { // should never happen
+                left_op_ptr = (s8*) REG(RRR(mmm));
+                right_op_ptr = (s8*) REG(RRR(rrr % 4));
+                if (rrr >= 4) {
+                    right_op_ptr++;
+                }
+            }
+            res = func(*left_op_ptr, *right_op_ptr);
+            if (func != &cmp && func != &test) {
+                *left_op_ptr = res;
+            }
         }
+        FLAG_CHECK(res,1,1,1,1,1);
     }
-	FLAG_CHECK(res,1,1,1,1,1);
 }
 
 void func_Acc_Imm(func_2op func, u8 w, s8 imm8, s16 imm16) {
@@ -265,10 +318,14 @@ void func_Acc_Imm(func_2op func, u8 w, s8 imm8, s16 imm16) {
     s16 res;
 	if (w) {
         res = func(*reg, imm16);
-		*reg = res;
+        if (func != &cmp && func != &test) {
+            *reg = res;
+        }
 	} else {
-		res = func(*reg, imm16);
-		SET_LOW(reg, res);
+		res = func(*reg, imm8);
+        if (func != &cmp && func != &test) {
+            SET_LOW(reg, res);
+        }
 	}
 	FLAG_CHECK(res,1,1,1,1,1);
 }
@@ -284,17 +341,23 @@ void func_RMI(func_2op func, u8 s, u8 w, u8 oo, u8 mmm, s8 imm8, s16 imm16, s8 i
         left_op_ptr = reg;
     }
 
-    if(s){
+    if (s) {
         if(w){
             res = func(*left_op_ptr, (s16)imm_dat8);
-            *left_op_ptr = res;
+            if (func != &cmp && func != &test) {
+                *left_op_ptr = res;
+            }
         } else {
             res = func(*left_op_ptr, imm_dat8);
-            SET_LOW(left_op_ptr, res);
+            if (func != &cmp && func != &test) {
+                SET_LOW(left_op_ptr, res);
+            }
         }
     } else {
         res = func(*left_op_ptr, imm_dat16);
-        *left_op_ptr = res;
+        if (func != &cmp && func != &test) {
+            *left_op_ptr = res;
+        }
     }
 	FLAG_CHECK(res,1,1,1,1,1);
 }
@@ -644,6 +707,7 @@ void INC_Reg_W(u8 rrr) {
 
 void INT(u8 type) {
     u8 ah = GET_HI(*REG(AX));
+    char last_read = '\0';
     // video interrupt
     if (type == 0x10) {
         switch (ah) {
@@ -660,9 +724,14 @@ void INT(u8 type) {
         switch (ah) {
             // read keyboard input
             case 0x00:
+                SET_LOW(REG(AX), last_read);
+                SET_HI(REG(AX), last_read);
                 break;
             // return keyboard status
             case 0x01:
+                SET_LOW(REG(AX), last_read);
+                SET_HI(REG(AX), last_read);
+	            FLAG_CHECK(last_read,1,1,1,1,1);
                 break;
             case 0x02:
                 break;
@@ -685,6 +754,11 @@ void INT(u8 type) {
                 break;
             // write character to stdout
             case 0x02:
+                // get character value from DL
+                last_read = GET_LOW(*REG(DX));
+                if (!show_parser_output) {
+                    printf("%c", last_read);
+                }
                 break;
             // console input/output
             case 0x06:
@@ -693,7 +767,18 @@ void INT(u8 type) {
                 break;
             case 0x08:
                 break;
+            // write string to stdout
             case 0x09:
+                // read characters as bytes from memory at DX until '$' is read
+                for (int addr = *REG(DX); addr <= *REG(DX) + 100 && last_read != '$'; addr += 2) {
+                    last_read = (MEM[addr] << 4) + MEM[addr + 1];
+                    if (last_read != '$' && !show_parser_output) {
+                        printf("%c", last_read);
+                    }
+                }
+                if (!show_parser_output) {
+                    printf("\n");
+                }
                 break;
             case 0x0a:
                 break;
@@ -796,12 +881,21 @@ void MOV_MOFS_Acc(u8 d,u8 w,s8 imm8,s16 imm16){
 }
 
 void MOV_Reg_Imm(u8 w,u8 rrr,s8 imm8,s16 imm16){
-	s16 *reg=REG(RRR(rrr));
-	if(w){
-		*reg=imm16;
-	}
-	else{
-		*reg=imm8;
+    s16 *reg;
+    if (w) {
+        reg = REG(RRR(rrr));
+    } else {
+        // AL, CL, DL, BL, AH, CH, DH, BH
+        reg = REG(RRR(rrr % 4));
+    }
+	if (w) {
+		*reg = imm16;
+	} else {
+        if (rrr <= 3) {
+            SET_LOW(reg, imm8);
+        } else {
+            SET_HI(reg, imm8);
+        }
 	}
 }
 
@@ -818,9 +912,28 @@ void MOV_Mem_Imm(u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16,s8 imm_dat8,s16 imm_dat16){
 }
 
 void MOV_Reg_Reg(u8 w,u8 rrr,u8 mmm){
-	s16 *reg_a=REG(RRR(rrr));
-	s16 *reg_b=REG(RRR(mmm));
-	*reg_a=*reg_b; //Check w bit later
+    if (w) {
+        s16 *reg_a = REG(RRR(rrr));
+        s16 *reg_b = REG(RRR(mmm));
+        *reg_a = *reg_b;
+    } else {
+        // AL, CL, DL, BL, AH, CH, DH, BH
+        s16 *reg_a = REG(RRR(rrr % 4));
+        s16 *reg_b = REG(RRR(mmm % 4));
+        if (rrr <= 3) {
+            if (mmm <= 3) {
+                SET_LOW(reg_a, GET_LOW(*reg_b));
+            } else {
+                SET_LOW(reg_a, GET_HI(*reg_b));
+            }
+        } else {
+            if (mmm <= 3) {
+                SET_HI(reg_a, GET_LOW(*reg_b));
+            } else {
+                SET_HI(reg_a, GET_HI(*reg_b));
+            }
+        }
+    }
 }
 
 void MOV_Reg_Mem(u8 d,u8 w,u8 oo,u8 rrr,u8 mmm,s8 imm8,s16 imm16){
@@ -1025,11 +1138,10 @@ void PUSHF(){
 }
 
 void JMP_Short(s8 offset){
-	*(REG(IP))=IP+offset;
+	*(REG(IP)) += (offset << 1);
 }
-void JMP_Near(s8 low,s8 hi){
-	s16 offset = ((hi << 8) | 0x00ff) & low;
-	*(REG(IP))=IP+offset;	
+void JMP_Near(s16 offset){
+	*(REG(IP)) += (offset << 1);
 }
 void JMP_Far(s8 lo_ip,s8 hi_ip,s8 lo_cs,s8 hi_cs){
 	s16 offset=	((hi_ip << 8) | 0x00ff) & lo_ip;
@@ -1127,8 +1239,8 @@ void NOP() {
 }
 
 void RET_Near(){
-	*REG(IP)=MEM[*REG(SP)];
 	*REG(SP)+=2;
+	*REG(IP)=MEM[*REG(SP)];
 }
 
 void RET_Imm_Near(s16 imm){
@@ -1137,16 +1249,58 @@ void RET_Imm_Near(s16 imm){
 }
 
 void RET_Far(){
+	*REG(SP)+=2;
 	*REG(IP)=MEM[*REG(SP)];
 	*REG(SP)+=2;
 	*REG(CS)=MEM[*REG(SP)];
-	*REG(SP)+=2;
 }
 void RET_Imm_Far(s16 imm){
 	*REG(IP)=MEM[*REG(SP)];
 	*REG(SP)+=2;
 	*REG(CS)=MEM[*REG(SP)];
 	*REG(SP)+=imm;
+}
+
+void SAL(u8 places, u8 w, u8 oo, u8 mmm, s8 imm8, s16 imm16) {
+	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, -1);
+    s16 *left_op_ptr;
+    if (oo >= 0 && oo <= 2) {
+        left_op_ptr = &MEM[abs_addr];
+    } else {
+        left_op_ptr = REG(RRR(mmm));
+    }
+    if (places == 1) {
+        *REG(CF) = SIGN(*left_op_ptr);
+    }
+    *left_op_ptr <<= places;
+}
+
+void SAR(u8 places, u8 w, u8 oo, u8 mmm, s8 imm8, s16 imm16) {
+	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, -1);
+    s16 *left_op_ptr;
+    if (oo >= 0 && oo <= 2) {
+        left_op_ptr = &MEM[abs_addr];
+    } else {
+        left_op_ptr = REG(RRR(mmm));
+    }
+    if (places == 1) {
+        *REG(CF) = *left_op_ptr % 2;
+    }
+    *left_op_ptr >>= places;
+}
+
+void SHR(u8 places, u8 w, u8 oo, u8 mmm, s8 imm8, s16 imm16) {
+	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, -1);
+    s16 *left_op_ptr;
+    if (oo >= 0 && oo <= 2) {
+        left_op_ptr = &MEM[abs_addr];
+    } else {
+        left_op_ptr = REG(RRR(mmm));
+    }
+    if (places == 1) {
+        *REG(CF) = *left_op_ptr % 2;
+    }
+    *left_op_ptr = ((u16) (*left_op_ptr)) >> places;
 }
 
 void SBB_RM(u8 d,u8 w,u8 oo,u8 rrr,u8 mmm,s8 imm8,s16 imm16){
@@ -1183,6 +1337,37 @@ void SUB_RMI(u8 s,u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16,s8 imm_dat8,s16 imm_dat16)
     func_RMI(&sub, s, w, oo, mmm, imm8, imm16, imm_dat8, imm_dat16);
 }
 
+void TEST_RM(u8 d,u8 w,u8 oo,u8 rrr,u8 mmm,s8 imm8,s16 imm16){
+    func_RM(&test, d, w, oo, rrr, mmm, imm8, imm16);
+}
+
+void TEST_Acc_Imm(u8 w,s8 imm8,s16 imm16){
+    func_Acc_Imm(&test, w, imm8, imm16);
+}
+
+void TEST_RMI(u8 s,u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16,s8 imm_dat8,s16 imm_dat16){
+    func_RMI(&test, s, w, oo, mmm, imm8, imm16, imm_dat8, imm_dat16);
+}
+
+void XCHG_RM(u8 d,u8 w,u8 oo,u8 rrr,u8 mmm,s8 imm8,s16 imm16) {
+    s16 *left_op_ptr = REG(RRR(rrr)), *right_op_ptr;
+	u32 abs_addr = calc_abs_addr(w, oo, mmm, imm8, imm16);
+    if (oo >= 0 && oo <= 2) {
+        right_op_ptr = &MEM[abs_addr];
+    } else {
+        right_op_ptr = REG(RRR(mmm));
+    }
+    s16 temp = *left_op_ptr;
+    *left_op_ptr = *right_op_ptr;
+    *right_op_ptr = temp;
+}
+
+void XCHG_Acc_W_Reg_W(u8 rrr) {
+    s16 temp = *REG(RRR(rrr));
+    *REG(RRR(rrr)) = *REG(AX);
+    *REG(AX) = temp;
+}
+
 void XOR_RM(u8 d,u8 w,u8 oo,u8 rrr,u8 mmm,s8 imm8,s16 imm16){
     func_RM(&xor, d, w, oo, rrr, mmm, imm8, imm16);
 }
@@ -1196,11 +1381,10 @@ void XOR_RMI(u8 s,u8 w,u8 oo,u8 mmm,s8 imm8,s16 imm16,s8 imm_dat8,s16 imm_dat16)
 }
 
 
-void CALL_Near(s8 low,s8 hi){
-	s16 offset = ((hi << 8) | 0x00ff) & low;
+void CALL_Near(s16 offset){
 	MEM[*REG(SP)]=*REG(IP);
-	*REG(SP)-=2;
-	*(REG(IP))=IP+offset;	
+	*REG(SP) -= 2;
+	*(REG(IP)) += (offset << 1);
 }
 void CALL_Far(s8 lo_ip,s8 hi_ip,s8 lo_cs,s8 hi_cs){
 	s16 offset=	((hi_ip << 8) | 0x00ff) & lo_ip;
